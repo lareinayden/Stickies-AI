@@ -1,0 +1,44 @@
+{
+  "name": "@stickies-ai/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest",
+    "test:db": "tsx src/scripts/test-db.ts",
+    "test:audio": "tsx src/scripts/test-audio.ts",
+    "test:whisper": "tsx src/scripts/test-whisper.ts",
+    "test:all": "npm run test:db && npm run test:audio",
+    "db:init": "tsx src/lib/db/init.ts"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "pg": "^8.11.0",
+    "uuid": "^9.0.0",
+    "openai": "^4.0.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "formidable": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/pg": "^8.10.0",
+    "@types/uuid": "^9.0.0",
+    "@types/fluent-ffmpeg": "^2.1.26",
+    "@types/formidable": "^3.4.5",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0",
+    "@testing-library/react": "^14.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.7.0",
+    "dotenv": "^16.0.0"
+  }
+}
