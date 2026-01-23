@@ -21,10 +21,25 @@ cp .env.example .env
 # The schema will be automatically created on first connection
 ```
 
-4. Run the development server:
+4. Install Tailwind CSS dependencies (if not already installed):
+```bash
+npm install
+```
+
+5. Run the development server:
 ```bash
 npm run dev
 ```
+
+6. Open your browser and navigate to:
+```
+http://localhost:3000
+```
+
+You'll see a web interface where you can:
+- Upload audio files
+- View transcription status
+- See transcription results with segments
 
 ## Database Setup
 
@@ -65,8 +80,19 @@ Verify installation:
 ffmpeg -version
 ```
 
+## Web Interface
+
+The application includes a web UI for testing the voice input pipeline:
+
+1. Start the dev server: `npm run dev`
+2. Open http://localhost:3000 in your browser
+3. Upload an audio file using the form
+4. View real-time status and transcription results
+
 ## API Routes
 
 - `POST /api/voice/upload` - Upload audio file for transcription
 - `GET /api/voice/status/:ingestionId` - Get transcription status
 - `GET /api/voice/transcript/:ingestionId` - Get transcription result
+
+See `API_DOCUMENTATION.md` for detailed API documentation.
