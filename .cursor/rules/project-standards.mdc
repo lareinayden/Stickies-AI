@@ -1,0 +1,240 @@
+---
+description: Core project standards and development practices for Stickies AI
+alwaysApply: true
+---
+
+# Stickies AI - Project Standards
+
+## Planning & Documentation
+
+### Plans Directory
+- **Always create plans in `_plans/` directory** before implementing features
+- Plans must be in **Markdown format** (`.md`)
+- Plans should be **clear, detailed, and concrete** with:
+  - Feature breakdown
+  - Technical approach
+  - File structure
+  - Dependencies
+  - Implementation steps
+- Example: `_plans/voice-input-implementation.md`
+
+## Test-Driven Development (TDD)
+
+### TDD Workflow
+1. **Write failing test first** - Define expected behavior
+2. **Write minimal code** - Make test pass
+3. **Refactor** - Improve code while keeping tests green
+4. **Repeat** - Move to next feature
+
+### Test Structure
+- Place tests in `tests/` directory within each package
+- Mirror source structure: `tests/services/`, `tests/components/`, etc.
+- Use descriptive test names: `describe('VoiceInputService', () => { it('should transcribe audio to text', ...) })`
+- Maintain high test coverage for core features (LLM integration, data processing, habit tracking)
+
+### Platform-Specific Testing
+- **Shared**: Unit tests with Vitest (fast, no platform dependencies)
+- **Web**: Component tests with React Testing Library + Vitest
+- **iOS**: Component tests with React Native Testing Library + Jest
+- **Integration**: Test shared services independently, mock platform-specific implementations
+
+## Tech Stack
+
+### Architecture: Monorepo with Shared Core
+- **Web**: Next.js (TypeScript) - Dashboard and web interface
+- **iOS**: React Native (TypeScript) - Native mobile app
+- **Shared**: Common business logic, services, types, and utilities
+- **Backend**: Next.js API routes or separate Node.js service for LLM/News processing
+
+### Testing
+- **Web**: Vitest (fast, Vite-native, works with Next.js)
+- **iOS**: Jest + React Native Testing Library
+- **Shared**: Vitest for shared business logic
+
+### Voice Input
+- **Primary**: OpenAI Whisper API for transcription (both web and iOS)
+- **Audio Capture**: Platform-specific libraries for recording
+  - **Web**: MediaRecorder API or Web Audio API
+  - **iOS**: `react-native-audio-recorder-player` or `expo-av` (if using Expo)
+- **Unified**: Abstract voice service interface in shared package
+
+## Project Structure
+
+```
+packages/
+  shared/              # Shared business logic (services, types, utils)
+    src/
+      services/        # LLMService, NewsTracker, HabitEngine, etc.
+      types/           # TypeScript type definitions
+      utils/           # Helper functions
+    tests/
+  web/                 # Next.js web application
+    src/
+      app/             # Next.js app directory
+      components/      # Web-specific React components
+      hooks/           # Web-specific hooks
+    tests/
+  ios/                 # React Native iOS app
+    src/
+      components/      # iOS-specific React Native components
+      screens/         # Screen components
+      hooks/           # iOS-specific hooks
+      navigation/      # Navigation setup
+    ios/               # Native iOS project files
+    tests/
+_plans/                # All project plans
+```
+
+### Shared Code Principles
+- Business logic lives in `packages/shared/`
+- Platform-specific UI in respective `web/` or `ios/` directories
+- Use dependency injection for platform-specific implementations (voice, storage, notifications)
+- Keep shared code platform-agnostic (no web/iOS-specific APIs)
+
+## Code Style & Quality
+
+### TypeScript/JavaScript
+- Use **ESLint** for linting (enforce best practices, catch errors)
+- Use **Prettier** for formatting (consistent code style)
+- Prefer functional programming patterns
+- Use TypeScript strict mode
+- Define interfaces/types in `src/types/`
+
+### Python (if used for LLM microservices)
+- Use **Black** for code formatting
+- Follow PEP 8 style guide
+- Type hints required for function signatures
+
+## LLM Integration Patterns
+
+### Provider Abstraction
+- Create abstract `LLMService` interface
+- Implement providers: `OpenAIService`, `AnthropicService`, `GeminiService`
+- Use dependency injection for provider selection
+- Handle rate limits, retries, and error cases gracefully
+
+### LLM Call Patterns
+```typescript
+// ✅ GOOD - Abstracted service
+const llmService = new LLMService(provider);
+const result = await llmService.generateSticky(content);
+
+// ❌ BAD - Direct API calls scattered
+const response = await fetch('https://api.openai.com/...');
+```
+
+## Voice Input
+
+### Architecture: OpenAI Whisper API
+- **Transcription**: Use OpenAI Whisper API for all voice-to-text conversion
+- **Audio Capture**: Platform-specific recording libraries
+  - **Web**: MediaRecorder API (browser native) or Web Audio API
+  - **iOS**: `react-native-audio-recorder-player` or `expo-av` for audio recording
+- **Flow**: Record audio → Convert to format (mp3, wav, m4a) → Send to Whisper API → Get transcription
+
+### Unified Interface
+Create abstract `VoiceInputService` in shared package:
+```typescript
+// packages/shared/src/services/VoiceInputService.ts
+interface VoiceInputService {
+  startRecording(): Promise<void>;
+  stopRecording(): Promise<Blob | File>; // Returns audio file/blob
+  pauseRecording(): Promise<void>;
+  resumeRecording(): Promise<void>;
+  transcribeAudio(audioFile: Blob | File): Promise<string>; // Uses Whisper API
+}
+```
+
+### Implementation Requirements
+- **Audio Format**: Whisper API supports mp3, mp4, mpeg, mpga, m4a, wav, webm
+- **File Size**: Handle large audio files (Whisper supports up to 25MB)
+- **Streaming**: Consider chunked upload for long recordings
+- **Permissions**: Handle platform-specific microphone permissions
+  - **Web**: Request microphone permission via `navigator.mediaDevices.getUserMedia()`
+  - **iOS**: Configure `NSMicrophoneUsageDescription` in Info.plist
+- **Visual Feedback**: Provide recording indicator, waveform, or timer during capture
+- **Error Handling**: 
+  - Network failures when calling Whisper API
+  - Permission denied scenarios
+  - Audio format conversion errors
+  - Fallback to text input if voice transcription fails
+- **Optimization**: 
+  - Compress audio before sending to reduce API costs
+  - Cache transcriptions for repeated audio (if applicable)
+  - Show loading state during transcription
+
+### Whisper API Integration Pattern
+```typescript
+// ✅ GOOD - Centralized Whisper service
+const whisperService = new WhisperService(openAIClient);
+const transcription = await whisperService.transcribe(audioFile);
+
+// ❌ BAD - Direct API calls in components
+const formData = new FormData();
+formData.append('file', audioFile);
+const response = await fetch('https://api.openai.com/v1/audio/transcriptions', ...);
+```
+
+## Core Features Implementation
+
+### Sticky Notes
+- Each sticky is a self-contained component
+- Support multiple types: Task, Learning Card, News Summary
+- Implement flip-card animation for learning cards
+- Store state in structured format (JSON/database)
+
+### Habit Loop & Gamification
+- Track streaks in persistent storage
+- Generate positive feedback messages via LLM
+- Visual indicators for streak counts
+- Notification triggers based on context
+
+### News Tracker
+- Scrape/summarize from specific domains
+- Use LLM to generate digestible summaries
+- Cache results to avoid redundant API calls
+- Support domain filtering (Tech, Economy, etc.)
+
+## Error Handling
+
+- Always handle LLM API failures gracefully
+- Provide user-friendly error messages
+- Log errors for debugging (avoid exposing sensitive data)
+- Implement retry logic for transient failures
+
+## Performance
+
+- Lazy load components and data
+- Cache LLM responses when appropriate
+- Optimize re-renders (use React.memo, useMemo, useCallback)
+- Debounce voice input processing
+- **iOS**: Use FlatList for sticky notes list (better performance than ScrollView)
+- **iOS**: Implement image caching for news thumbnails
+- **Shared**: Minimize bundle size by tree-shaking unused code
+
+## iOS-Specific Considerations
+
+### Native Features
+- Use React Native libraries for native iOS features:
+  - **Notifications**: `@react-native-async-storage/async-storage` for local storage
+  - **Push Notifications**: `@react-native-community/push-notification-ios`
+  - **Haptic Feedback**: `react-native-haptic-feedback` for streak celebrations
+  - **Biometric Auth**: `react-native-biometrics` (optional, for secure storage)
+
+### iOS Development Setup
+- Use **Xcode** for iOS development and testing
+- Configure iOS simulator for development
+- Handle iOS-specific permissions (microphone, notifications) in Info.plist
+- Test on physical devices for voice input accuracy
+- Follow iOS Human Interface Guidelines for UI/UX
+
+### Code Sharing Strategy
+- **Share**: Business logic, types, utilities, LLM services
+- **Platform-Specific**: UI components, navigation, native integrations
+- Use dependency injection pattern for platform adapters
+
+### Voice Input Backend
+- **Security**: Never expose OpenAI API keys in frontend code
+- **Implementation**: Create backend API route (Next.js API route or separate service) to handle Whisper API calls
+- **Pattern**: Frontend sends audio file → Backend route → Whisper API → Returns transcription
+- **Error Handling**: Backend should handle API rate limits, errors, and retries
