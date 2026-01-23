@@ -11,6 +11,7 @@
     "test:db": "tsx src/scripts/test-db.ts",
     "test:audio": "tsx src/scripts/test-audio.ts",
     "test:whisper": "tsx src/scripts/test-whisper.ts",
+    "test:api": "tsx src/scripts/test-api.ts",
     "test:all": "npm run test:db && npm run test:audio",
     "db:init": "tsx src/lib/db/init.ts"
   },
