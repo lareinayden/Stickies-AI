@@ -3,7 +3,7 @@
  */
 
 import { Pool, PoolConfig } from 'pg';
-import { TRANSCRIPTIONS_TABLE_SCHEMA } from './schema';
+import { TRANSCRIPTIONS_TABLE_SCHEMA, TASKS_TABLE_SCHEMA } from './schema';
 
 let pool: Pool | null = null;
 
@@ -46,6 +46,7 @@ export async function initializeDatabase(): Promise<void> {
   
   try {
     await db.query(TRANSCRIPTIONS_TABLE_SCHEMA);
+    await db.query(TASKS_TABLE_SCHEMA);
     console.log('Database schema initialized successfully');
   } catch (error) {
     console.error('Error initializing database schema:', error);

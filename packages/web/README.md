@@ -91,8 +91,50 @@ The application includes a web UI for testing the voice input pipeline:
 
 ## API Routes
 
+### Voice Transcription
 - `POST /api/voice/upload` - Upload audio file for transcription
 - `GET /api/voice/status/:ingestionId` - Get transcription status
 - `GET /api/voice/transcript/:ingestionId` - Get transcription result
+- `POST /api/voice/summarize/:ingestionId` - Summarize transcript into tasks/reminders
+
+### Tasks Management
+- `GET /api/tasks` - Get all tasks (with optional filters)
+- `GET /api/tasks/:ingestionId` - Get tasks for a specific ingestion
+- `GET /api/task/:taskId` - Get a specific task by ID
+- `PATCH /api/task/:taskId` - Update a task (e.g., mark as completed)
+- `DELETE /api/task/:taskId` - Delete a task
 
 See `API_DOCUMENTATION.md` for detailed API documentation.
+
+## Task Summarization
+
+After transcribing a voice input, you can automatically convert the transcript into structured tasks and reminders using AI:
+
+1. Upload and transcribe audio: `POST /api/voice/upload`
+2. Wait for transcription to complete (check status: `GET /api/voice/status/:ingestionId`)
+3. Summarize into tasks: `POST /api/voice/summarize/:ingestionId`
+4. Retrieve tasks: `GET /api/tasks/:ingestionId`
+
+The summarization uses OpenAI's GPT models to extract actionable items from the transcript, including:
+- Task titles and descriptions
+- Priority levels (low, medium, high)
+- Due dates (parsed from natural language)
+- Task types (task, reminder, note)
+
+### Debug Example
+
+```bash
+# 1. Upload an audio file
+curl -X POST http://localhost:3000/api/voice/upload \
+  -F "file=@/path/to/your/audio.m4a" \
+  -F "language=en"
+
+# Response will include an ingestionId, e.g.:
+# {"ingestionId": "1769217532231-f005dfbb-a4a6-43e2-9533-704211d455e0", ...}
+
+# 2. Summarize the transcript into tasks
+npm run test:summarize <ingestionId>
+
+# Example:
+npm run test:summarize 1769217532231-f005dfbb-a4a6-43e2-9533-704211d455e0
+```

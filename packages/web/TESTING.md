@@ -149,14 +149,73 @@ npm run test:whisper
    Confidence: 95.2%
 ```
 
-### 4. Run All Tests
+### 4. Test Transcript Summarization
+
+This tests the AI-powered summarization that converts transcripts into tasks:
+
+```bash
+# First, upload an audio file to get an ingestionId
+curl -X POST http://localhost:3000/api/voice/upload \
+  -F "file=@your-audio.wav" \
+  -F "language=en"
+
+# Then test summarization with the returned ingestionId
+npm run test:summarize <ingestionId>
+```
+
+**What it tests:**
+- ✅ Summarizing transcript into tasks/reminders
+- ✅ Task extraction with priorities and due dates
+- ✅ Retrieving tasks by ingestion ID
+- ✅ Listing all tasks
+- ✅ Updating task completion status
+
+**Expected output:**
+```
+🧪 Testing Transcript Summarization
+==================================================
+
+1️⃣ Checking if server is running...
+✅ Server is running
+
+2️⃣ Getting transcription for ingestionId: ...
+✅ Transcription retrieved:
+   Status: completed
+   Transcript: "I need to buy groceries tomorrow and call the dentist..."
+   Full length: 156 characters
+
+3️⃣ Testing POST /api/voice/summarize/:ingestionId...
+✅ Summarization successful!
+   Tasks created: 2
+   Transcription ID: ...
+
+   📋 Extracted Tasks:
+   1. Buy groceries
+      Description: Get milk, eggs, and bread
+      Type: task
+      Priority: medium
+      Due Date: 1/24/2024, 11:59:59 PM
+      Completed: false
+      ID: ...
+
+   2. Call dentist
+      Type: reminder
+      Priority: high
+      Due Date: null
+      Completed: false
+      ID: ...
+```
+
+**Note:** This test makes actual OpenAI API calls and may incur costs.
+
+### 5. Run All Tests
 
 Run all tests (database, audio, and Whisper):
 
 ```bash
 npm run test:all
 # Note: test:all currently runs db and audio tests
-# Run test:whisper separately as it requires API key
+# Run test:whisper and test:summarize separately as they require API key
 ```
 
 ## Unit Tests (Vitest)
@@ -172,6 +231,37 @@ This runs all tests in the `src/tests/` directory:
 - `tests/lib/audio/normalizer.test.ts` - Audio normalization tests (skips if FFmpeg unavailable)
 
 ## Manual Testing
+
+### Test Summarization Manually
+
+You can test the summarization feature using curl:
+
+```bash
+# 1. Upload an audio file
+curl -X POST http://localhost:3000/api/voice/upload \
+  -F "file=@your-audio.wav" \
+  -F "language=en"
+
+# Response will include an ingestionId, e.g.:
+# {"ingestionId": "1706123456789-550e8400-...", "status": "completed"}
+
+# 2. Wait for transcription to complete, then summarize
+curl -X POST http://localhost:3000/api/voice/summarize/<ingestionId>
+
+# 3. Get the created tasks
+curl http://localhost:3000/api/tasks/<ingestionId>
+
+# 4. Update a task (mark as completed)
+curl -X PATCH http://localhost:3000/api/task/<taskId> \
+  -H "Content-Type: application/json" \
+  -d '{"completed": true}'
+
+# 5. Get all tasks
+curl http://localhost:3000/api/tasks
+
+# 6. Get a specific task
+curl http://localhost:3000/api/task/<taskId>
+```
 
 ### Test Database Operations Manually
 
@@ -246,6 +336,17 @@ console.log('Normalized:', result);
 - [x] Retry logic
 - [x] Error handling
 
+### Summarization Tests (Requires OpenAI API Key) ⚠️
+- [x] Summarize transcript into tasks
+- [x] Task extraction with metadata
+- [x] Priority assignment
+- [x] Due date parsing
+- [x] Task type classification
+- [x] Retrieve tasks by ingestion ID
+- [x] List all tasks
+- [x] Update task completion
+- [x] Task CRUD operations
+
 ## Troubleshooting
 
 ### Database Connection Errors
@@ -287,9 +388,10 @@ If tests fail:
 
 ## Next Steps
 
-Now that Phase 3 (Whisper API Integration) is complete, you can test:
+Now that Phase 3 (Whisper API Integration) and Phase 4 (Task Summarization) are complete, you can test:
 - ✅ Full pipeline: Upload → Normalize → Transcribe → Save (via test scripts)
-- ⏳ API endpoints (Phase 4)
+- ✅ API endpoints (Phase 4)
+- ✅ Task summarization and management
 - ⏳ End-to-end integration (Phase 5)
 
 ## Continuous Testing

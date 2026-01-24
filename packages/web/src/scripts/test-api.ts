@@ -121,6 +121,31 @@ async function testAPI() {
       if (transcriptResult.segments) {
         console.log(`   Segments: ${transcriptResult.segments.length}`);
       }
+
+      // Test summarization if transcript is available
+      if (transcriptResult.transcript && transcriptResult.status === 'completed') {
+        console.log('\n6️⃣ Testing POST /api/voice/summarize/:ingestionId...');
+        try {
+          const summarizeResponse = await fetch(
+            `${API_BASE_URL}/api/voice/summarize/${ingestionId}`,
+            { method: 'POST' }
+          );
+
+          if (summarizeResponse.ok) {
+            const summarizeResult = await summarizeResponse.json();
+            console.log('✅ Summarization successful!');
+            console.log(`   Tasks created: ${summarizeResult.tasksCreated}`);
+            if (summarizeResult.tasks && summarizeResult.tasks.length > 0) {
+              console.log(`   First task: "${summarizeResult.tasks[0].title}"`);
+            }
+          } else {
+            const error = await summarizeResponse.json();
+            console.log(`⚠️  Summarization: ${error.error || 'Unknown error'}`);
+          }
+        } catch (error) {
+          console.log(`⚠️  Summarization test skipped: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
     } else {
       const error = await transcriptResponse.json();
       console.log(`⚠️  Transcript retrieval: ${error.error || 'Unknown error'}`);
@@ -133,6 +158,8 @@ async function testAPI() {
 
     console.log('\n' + '='.repeat(50));
     console.log('✅ All API endpoint tests completed!');
+    console.log('\n💡 Tip: To test summarization in detail, run:');
+    console.log(`   npm run test:summarize ${ingestionId}`);
   } catch (error) {
     console.error('\n❌ Test failed:', error);
     process.exit(1);
