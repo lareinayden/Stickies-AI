@@ -12,12 +12,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTasks } from '@/lib/db/tasks';
+import { requireAuth } from '@/lib/auth/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+    
     const searchParams = request.nextUrl.searchParams;
 
     const filters: {
@@ -60,7 +64,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const tasks = await getTasks(filters);
+    const tasks = await getTasks(userId, filters);
 
     return NextResponse.json({
       tasks: tasks.map((task) => ({
@@ -81,6 +85,15 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Task retrieval error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:

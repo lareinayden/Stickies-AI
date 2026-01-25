@@ -4,6 +4,7 @@
 
 export interface TranscriptionRecord {
   id: string; // UUID
+  user_id: string; // User who owns this transcription
   ingestion_id: string; // Unique ingestion identifier
   status: 'pending' | 'processing' | 'completed' | 'failed';
   original_filename: string | null;
@@ -28,6 +29,7 @@ export interface TranscriptionSegment {
 
 export interface TaskRecord {
   id: string; // UUID
+  user_id: string; // User who owns this task
   transcription_id: string; // Reference to transcription
   ingestion_id: string; // Reference to ingestion for easy lookup
   title: string; // Task/reminder title
@@ -42,7 +44,7 @@ export interface TaskRecord {
 }
 
 /**
- * SQL schema for transcriptions table
+ * SQL schema for transcriptions table (without user_id for backward compatibility)
  */
 export const TRANSCRIPTIONS_TABLE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS transcriptions (
@@ -69,7 +71,32 @@ export const TRANSCRIPTIONS_TABLE_SCHEMA = `
 `;
 
 /**
- * SQL schema for tasks table
+ * Migration to add user_id column to existing transcriptions table
+ * Adds as nullable first (for existing data), then creates index
+ */
+export const MIGRATE_TRANSCRIPTIONS_USER_ID = `
+  DO $$ 
+  BEGIN
+    -- Add column if it doesn't exist (nullable for existing rows)
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'transcriptions' AND column_name = 'user_id'
+    ) THEN
+      ALTER TABLE transcriptions ADD COLUMN user_id VARCHAR(255);
+    END IF;
+    
+    -- Create index only if column exists
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'transcriptions' AND column_name = 'user_id'
+    ) THEN
+      CREATE INDEX IF NOT EXISTS idx_transcriptions_user_id ON transcriptions(user_id);
+    END IF;
+  END $$;
+`;
+
+/**
+ * SQL schema for tasks table (without user_id for backward compatibility)
  */
 export const TASKS_TABLE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS tasks (
@@ -92,4 +119,29 @@ export const TASKS_TABLE_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
   CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
   CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+`;
+
+/**
+ * Migration to add user_id column to existing tasks table
+ * Adds as nullable first (for existing data), then creates index
+ */
+export const MIGRATE_TASKS_USER_ID = `
+  DO $$ 
+  BEGIN
+    -- Add column if it doesn't exist (nullable for existing rows)
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'tasks' AND column_name = 'user_id'
+    ) THEN
+      ALTER TABLE tasks ADD COLUMN user_id VARCHAR(255);
+    END IF;
+    
+    -- Create index only if column exists
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'tasks' AND column_name = 'user_id'
+    ) THEN
+      CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+    END IF;
+  END $$;
 `;

@@ -9,6 +9,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { processAudioFile } from '@/lib/audio/processor';
 import { validateAudioFile } from '@/lib/utils/file-validation';
+import { requireAuth } from '@/lib/auth/middleware';
 import os from 'os';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,9 @@ if (!existsSync(uploadDir)) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+
     // Parse form data
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process audio file (synchronously for MVP)
-    const result = await processAudioFile(tempFilePath, file.name, {
+    const result = await processAudioFile(userId, tempFilePath, file.name, {
       language: language || undefined,
       translate,
       prompt: prompt || undefined,
@@ -87,6 +91,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Upload error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:

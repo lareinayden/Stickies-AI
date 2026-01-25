@@ -16,6 +16,7 @@ import {
   updateTaskCompletion,
   deleteTask,
 } from '@/lib/db/tasks';
+import { requireAuth } from '@/lib/auth/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,9 @@ export async function GET(
   { params }: { params: { taskId: string } }
 ) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+    
     const { taskId } = params;
 
     if (!taskId) {
@@ -34,7 +38,7 @@ export async function GET(
       );
     }
 
-    const task = await getTaskById(taskId);
+    const task = await getTaskById(userId, taskId);
 
     if (!task) {
       return NextResponse.json(
@@ -59,6 +63,15 @@ export async function GET(
     });
   } catch (error) {
     console.error('Task retrieval error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:
@@ -76,6 +89,9 @@ export async function PATCH(
   { params }: { params: { taskId: string } }
 ) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+    
     const { taskId } = params;
 
     if (!taskId) {
@@ -89,7 +105,7 @@ export async function PATCH(
 
     // Handle completion status update
     if (body.completed !== undefined) {
-      const task = await updateTaskCompletion(taskId, body.completed);
+      const task = await updateTaskCompletion(userId, taskId, body.completed);
       return NextResponse.json({
         id: task.id,
         title: task.title,
@@ -139,7 +155,7 @@ export async function PATCH(
       );
     }
 
-    const task = await updateTask(taskId, updates);
+    const task = await updateTask(userId, taskId, updates);
 
     return NextResponse.json({
       id: task.id,
@@ -154,6 +170,15 @@ export async function PATCH(
     });
   } catch (error) {
     console.error('Task update error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:
@@ -171,6 +196,9 @@ export async function DELETE(
   { params }: { params: { taskId: string } }
 ) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+    
     const { taskId } = params;
 
     if (!taskId) {
@@ -180,7 +208,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = await deleteTask(taskId);
+    const deleted = await deleteTask(userId, taskId);
 
     if (!deleted) {
       return NextResponse.json(
@@ -195,6 +223,15 @@ export async function DELETE(
     });
   } catch (error) {
     console.error('Task deletion error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:

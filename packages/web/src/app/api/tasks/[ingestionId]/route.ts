@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTasksByIngestionId } from '@/lib/db/tasks';
+import { requireAuth } from '@/lib/auth/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,9 @@ export async function GET(
   { params }: { params: { ingestionId: string } }
 ) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+    
     const { ingestionId } = params;
 
     if (!ingestionId) {
@@ -23,7 +27,7 @@ export async function GET(
       );
     }
 
-    const tasks = await getTasksByIngestionId(ingestionId);
+    const tasks = await getTasksByIngestionId(userId, ingestionId);
 
     return NextResponse.json({
       ingestionId,
@@ -42,6 +46,15 @@ export async function GET(
     });
   } catch (error) {
     console.error('Task retrieval error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:

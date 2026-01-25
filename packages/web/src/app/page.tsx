@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { VoiceRecorder } from '../components/VoiceRecorder';
+import { getCurrentUserId, clearSession } from '@/lib/auth/session';
+import { getUserById, type TestUser } from '@/lib/auth/users';
 
 interface UploadResponse {
   ingestionId: string;
@@ -43,6 +46,8 @@ interface TranscriptResponse {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<TestUser | null>(null);
   const [activeTab, setActiveTab] = useState<'upload' | 'microphone'>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('');
@@ -54,6 +59,29 @@ export default function Home() {
   const [transcript, setTranscript] = useState<TranscriptResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      router.push('/login');
+      return;
+    }
+    
+    const user = getUserById(userId);
+    if (!user) {
+      clearSession();
+      router.push('/login');
+      return;
+    }
+    
+    setCurrentUser(user);
+  }, [router]);
+
+  const handleLogout = () => {
+    clearSession();
+    router.push('/login');
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -188,16 +216,43 @@ export default function Home() {
     }
   };
 
+  // Show loading state while checking auth
+  if (!currentUser) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-xl p-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            🎤 Stickies AI - Voice Input Pipeline
-          </h1>
-          <p className="text-gray-600 mb-8">
-            Upload audio files or record from microphone for transcription using OpenAI Whisper API
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                🎤 Stickies AI - Voice Input Pipeline
+              </h1>
+              <p className="text-gray-600 mb-8">
+                Upload audio files or record from microphone for transcription using OpenAI Whisper API
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Logged in as</p>
+                <p className="font-semibold text-gray-800">{currentUser.displayName}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
+              >
+                Switch Account
+              </button>
+            </div>
+          </div>
 
           {/* Tab Navigation */}
           <div className="mb-6 border-b border-gray-200">

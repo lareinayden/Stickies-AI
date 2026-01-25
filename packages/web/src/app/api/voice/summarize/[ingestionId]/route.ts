@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTranscriptionByIngestionId } from '@/lib/db/transcriptions';
 import { createTasks } from '@/lib/db/tasks';
 import { createTaskSummarizer } from '@/lib/llm/task-summarizer';
+import { requireAuth } from '@/lib/auth/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,9 @@ export async function POST(
   { params }: { params: { ingestionId: string } }
 ) {
   try {
+    // Get authenticated user
+    const userId = await requireAuth(request);
+    
     const { ingestionId } = params;
 
     if (!ingestionId) {
@@ -26,7 +30,7 @@ export async function POST(
     }
 
     // Get transcription
-    const transcription = await getTranscriptionByIngestionId(ingestionId);
+    const transcription = await getTranscriptionByIngestionId(userId, ingestionId);
 
     if (!transcription) {
       return NextResponse.json(
@@ -145,6 +149,7 @@ export async function POST(
 
     // Create tasks in database
     const createdTasks = await createTasks(
+      userId,
       transcription.id,
       ingestionId,
       tasksWithDates
@@ -167,6 +172,15 @@ export async function POST(
     });
   } catch (error) {
     console.error('Summarization error:', error);
+    
+    // Handle authentication errors
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       {
         error:

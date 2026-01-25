@@ -39,6 +39,7 @@ export interface ProcessingResult {
  * Process audio file through the full pipeline
  */
 export async function processAudioFile(
+  userId: string,
   audioFilePath: string,
   originalFilename: string,
   options: ProcessingOptions = {}
@@ -50,13 +51,14 @@ export async function processAudioFile(
     // Step 1: Create transcription record in database
     const fileStats = await fs.stat(audioFilePath);
     let transcription = await createTranscription(
+      userId,
       ingestionId,
       originalFilename,
       fileStats.size
     );
 
     // Step 2: Update status to processing
-    transcription = await updateTranscriptionStatus(ingestionId, 'processing');
+    transcription = await updateTranscriptionStatus(userId, ingestionId, 'processing');
 
     // Step 3: Normalize audio
     const normalizer = new AudioNormalizer();
@@ -69,7 +71,7 @@ export async function processAudioFile(
     tempFiles.push(normalized.outputPath);
 
     // Update metadata with audio info
-    transcription = await updateTranscriptionMetadata(ingestionId, {
+    transcription = await updateTranscriptionMetadata(userId, ingestionId, {
       durationSeconds: normalized.metadata.duration,
       audioFormat: normalized.metadata.format,
     });
@@ -106,6 +108,7 @@ export async function processAudioFile(
     }
 
     transcription = await completeTranscription(
+      userId,
       ingestionId,
       whisperResult.text,
       segments || undefined,
@@ -133,7 +136,7 @@ export async function processAudioFile(
     // Mark as failed in database
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error occurred';
-    await failTranscription(ingestionId, errorMessage).catch(() => {
+    await failTranscription(userId, ingestionId, errorMessage).catch(() => {
       // Ignore errors during failure recording
     });
 

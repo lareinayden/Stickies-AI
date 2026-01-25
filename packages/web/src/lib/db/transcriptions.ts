@@ -9,6 +9,7 @@ import type { TranscriptionRecord, TranscriptionSegment } from './schema';
  * Create a new transcription record
  */
 export async function createTranscription(
+  userId: string,
   ingestionId: string,
   originalFilename?: string,
   fileSize?: number
@@ -16,27 +17,28 @@ export async function createTranscription(
   const db = getDbPool();
   
   const query = `
-    INSERT INTO transcriptions (ingestion_id, status, original_filename, file_size)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO transcriptions (user_id, ingestion_id, status, original_filename, file_size)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *
   `;
   
-  const values = [ingestionId, 'pending', originalFilename || null, fileSize || null];
+  const values = [userId, ingestionId, 'pending', originalFilename || null, fileSize || null];
   
   const result = await db.query(query, values);
   return mapRowToTranscription(result.rows[0]);
 }
 
 /**
- * Get transcription by ingestion ID
+ * Get transcription by ingestion ID (for a specific user)
  */
 export async function getTranscriptionByIngestionId(
+  userId: string,
   ingestionId: string
 ): Promise<TranscriptionRecord | null> {
   const db = getDbPool();
   
-  const query = 'SELECT * FROM transcriptions WHERE ingestion_id = $1';
-  const result = await db.query(query, [ingestionId]);
+  const query = 'SELECT * FROM transcriptions WHERE user_id = $1 AND ingestion_id = $2';
+  const result = await db.query(query, [userId, ingestionId]);
   
   if (result.rows.length === 0) {
     return null;
@@ -46,13 +48,16 @@ export async function getTranscriptionByIngestionId(
 }
 
 /**
- * Get transcription by ID
+ * Get transcription by ID (for a specific user)
  */
-export async function getTranscriptionById(id: string): Promise<TranscriptionRecord | null> {
+export async function getTranscriptionById(
+  userId: string,
+  id: string
+): Promise<TranscriptionRecord | null> {
   const db = getDbPool();
   
-  const query = 'SELECT * FROM transcriptions WHERE id = $1';
-  const result = await db.query(query, [id]);
+  const query = 'SELECT * FROM transcriptions WHERE user_id = $1 AND id = $2';
+  const result = await db.query(query, [userId, id]);
   
   if (result.rows.length === 0) {
     return null;
@@ -62,9 +67,10 @@ export async function getTranscriptionById(id: string): Promise<TranscriptionRec
 }
 
 /**
- * Update transcription status
+ * Update transcription status (for a specific user)
  */
 export async function updateTranscriptionStatus(
+  userId: string,
   ingestionId: string,
   status: TranscriptionRecord['status'],
   errorMessage?: string
@@ -74,11 +80,11 @@ export async function updateTranscriptionStatus(
   const query = `
     UPDATE transcriptions
     SET status = $1, error_message = $2
-    WHERE ingestion_id = $3
+    WHERE user_id = $3 AND ingestion_id = $4
     RETURNING *
   `;
   
-  const values = [status, errorMessage || null, ingestionId];
+  const values = [status, errorMessage || null, userId, ingestionId];
   const result = await db.query(query, values);
   
   if (result.rows.length === 0) {
@@ -89,9 +95,10 @@ export async function updateTranscriptionStatus(
 }
 
 /**
- * Update transcription with audio metadata
+ * Update transcription with audio metadata (for a specific user)
  */
 export async function updateTranscriptionMetadata(
+  userId: string,
   ingestionId: string,
   metadata: {
     durationSeconds?: number;
@@ -106,7 +113,7 @@ export async function updateTranscriptionMetadata(
     SET duration_seconds = COALESCE($1, duration_seconds),
         audio_format = COALESCE($2, audio_format),
         language = COALESCE($3, language)
-    WHERE ingestion_id = $4
+    WHERE user_id = $4 AND ingestion_id = $5
     RETURNING *
   `;
   
@@ -114,6 +121,7 @@ export async function updateTranscriptionMetadata(
     metadata.durationSeconds || null,
     metadata.audioFormat || null,
     metadata.language || null,
+    userId,
     ingestionId,
   ];
   
@@ -127,9 +135,10 @@ export async function updateTranscriptionMetadata(
 }
 
 /**
- * Complete transcription with transcript data
+ * Complete transcription with transcript data (for a specific user)
  */
 export async function completeTranscription(
+  userId: string,
   ingestionId: string,
   transcript: string,
   segments?: TranscriptionSegment[],
@@ -146,7 +155,7 @@ export async function completeTranscription(
         confidence_scores = $3,
         metadata = $4,
         completed_at = CURRENT_TIMESTAMP
-    WHERE ingestion_id = $5
+    WHERE user_id = $5 AND ingestion_id = $6
     RETURNING *
   `;
   
@@ -155,6 +164,7 @@ export async function completeTranscription(
     segments ? JSON.stringify(segments) : null,
     confidenceScores ? JSON.stringify(confidenceScores) : null,
     metadata ? JSON.stringify(metadata) : null,
+    userId,
     ingestionId,
   ];
   
@@ -168,19 +178,21 @@ export async function completeTranscription(
 }
 
 /**
- * Mark transcription as failed
+ * Mark transcription as failed (for a specific user)
  */
 export async function failTranscription(
+  userId: string,
   ingestionId: string,
   errorMessage: string
 ): Promise<TranscriptionRecord> {
-  return updateTranscriptionStatus(ingestionId, 'failed', errorMessage);
+  return updateTranscriptionStatus(userId, ingestionId, 'failed', errorMessage);
 }
 
 /**
- * Get all transcriptions with optional filters
+ * Get all transcriptions for a user with optional filters
  */
 export async function getTranscriptions(
+  userId: string,
   filters?: {
     status?: TranscriptionRecord['status'];
     limit?: number;
@@ -189,8 +201,8 @@ export async function getTranscriptions(
 ): Promise<TranscriptionRecord[]> {
   const db = getDbPool();
   
-  let query = 'SELECT * FROM transcriptions';
-  const values: unknown[] = [];
+  let query = 'SELECT * FROM transcriptions WHERE user_id = $1';
+  const values: unknown[] = [userId];
   const conditions: string[] = [];
   
   if (filters?.status) {
@@ -199,7 +211,7 @@ export async function getTranscriptions(
   }
   
   if (conditions.length > 0) {
-    query += ' WHERE ' + conditions.join(' AND ');
+    query += ' AND ' + conditions.join(' AND ');
   }
   
   query += ' ORDER BY created_at DESC';
@@ -219,13 +231,13 @@ export async function getTranscriptions(
 }
 
 /**
- * Delete transcription by ingestion ID
+ * Delete transcription by ingestion ID (for a specific user)
  */
-export async function deleteTranscription(ingestionId: string): Promise<boolean> {
+export async function deleteTranscription(userId: string, ingestionId: string): Promise<boolean> {
   const db = getDbPool();
   
-  const query = 'DELETE FROM transcriptions WHERE ingestion_id = $1';
-  const result = await db.query(query, [ingestionId]);
+  const query = 'DELETE FROM transcriptions WHERE user_id = $1 AND ingestion_id = $2';
+  const result = await db.query(query, [userId, ingestionId]);
   
   return result.rowCount !== null && result.rowCount > 0;
 }
@@ -236,6 +248,7 @@ export async function deleteTranscription(ingestionId: string): Promise<boolean>
 function mapRowToTranscription(row: Record<string, unknown>): TranscriptionRecord {
   return {
     id: row.id as string,
+    user_id: row.user_id as string,
     ingestion_id: row.ingestion_id as string,
     status: row.status as TranscriptionRecord['status'],
     original_filename: row.original_filename as string | null,

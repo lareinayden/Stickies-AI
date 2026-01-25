@@ -9,6 +9,7 @@ import type { TaskRecord } from './schema';
  * Create a new task from a transcription
  */
 export async function createTask(
+  userId: string,
   transcriptionId: string,
   ingestionId: string,
   task: {
@@ -24,6 +25,7 @@ export async function createTask(
 
   const query = `
     INSERT INTO tasks (
+      user_id,
       transcription_id,
       ingestion_id,
       title,
@@ -33,11 +35,12 @@ export async function createTask(
       due_date,
       metadata
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *
   `;
 
   const values = [
+    userId,
     transcriptionId,
     ingestionId,
     task.title,
@@ -56,6 +59,7 @@ export async function createTask(
  * Create multiple tasks from a transcription
  */
 export async function createTasks(
+  userId: string,
   transcriptionId: string,
   ingestionId: string,
   tasks: Array<{
@@ -78,6 +82,7 @@ export async function createTasks(
     for (const task of tasks) {
       const query = `
         INSERT INTO tasks (
+          user_id,
           transcription_id,
           ingestion_id,
           title,
@@ -87,11 +92,12 @@ export async function createTasks(
           due_date,
           metadata
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
 
       const values = [
+        userId,
         transcriptionId,
         ingestionId,
         task.title,
@@ -117,13 +123,13 @@ export async function createTasks(
 }
 
 /**
- * Get task by ID
+ * Get task by ID (for a specific user)
  */
-export async function getTaskById(id: string): Promise<TaskRecord | null> {
+export async function getTaskById(userId: string, id: string): Promise<TaskRecord | null> {
   const db = getDbPool();
 
-  const query = 'SELECT * FROM tasks WHERE id = $1';
-  const result = await db.query(query, [id]);
+  const query = 'SELECT * FROM tasks WHERE user_id = $1 AND id = $2';
+  const result = await db.query(query, [userId, id]);
 
   if (result.rows.length === 0) {
     return null;
@@ -133,47 +139,52 @@ export async function getTaskById(id: string): Promise<TaskRecord | null> {
 }
 
 /**
- * Get all tasks for a transcription
+ * Get all tasks for a transcription (for a specific user)
  */
 export async function getTasksByTranscriptionId(
+  userId: string,
   transcriptionId: string
 ): Promise<TaskRecord[]> {
   const db = getDbPool();
 
-  const query = 'SELECT * FROM tasks WHERE transcription_id = $1 ORDER BY created_at ASC';
-  const result = await db.query(query, [transcriptionId]);
+  const query = 'SELECT * FROM tasks WHERE user_id = $1 AND transcription_id = $2 ORDER BY created_at ASC';
+  const result = await db.query(query, [userId, transcriptionId]);
 
   return result.rows.map(mapRowToTask);
 }
 
 /**
- * Get all tasks for an ingestion ID
+ * Get all tasks for an ingestion ID (for a specific user)
  */
 export async function getTasksByIngestionId(
+  userId: string,
   ingestionId: string
 ): Promise<TaskRecord[]> {
   const db = getDbPool();
 
-  const query = 'SELECT * FROM tasks WHERE ingestion_id = $1 ORDER BY created_at ASC';
-  const result = await db.query(query, [ingestionId]);
+  const query = 'SELECT * FROM tasks WHERE user_id = $1 AND ingestion_id = $2 ORDER BY created_at ASC';
+  const result = await db.query(query, [userId, ingestionId]);
 
   return result.rows.map(mapRowToTask);
 }
 
 /**
- * Get all tasks with optional filters
+ * Get all tasks for a user with optional filters
  */
-export async function getTasks(filters?: {
-  completed?: boolean;
-  type?: 'task' | 'reminder' | 'note';
-  priority?: 'low' | 'medium' | 'high';
-  limit?: number;
-  offset?: number;
-}): Promise<TaskRecord[]> {
+export async function getTasks(
+  userId: string,
+  filters?: {
+    completed?: boolean;
+    type?: 'task' | 'reminder' | 'note';
+    priority?: 'low' | 'medium' | 'high';
+    limit?: number;
+    offset?: number;
+  }
+): Promise<TaskRecord[]> {
   const db = getDbPool();
 
-  let query = 'SELECT * FROM tasks WHERE 1=1';
-  const values: unknown[] = [];
+  let query = 'SELECT * FROM tasks WHERE user_id = $1';
+  const values: unknown[] = [userId];
   const conditions: string[] = [];
 
   if (filters?.completed !== undefined) {
@@ -212,9 +223,10 @@ export async function getTasks(filters?: {
 }
 
 /**
- * Update task completion status
+ * Update task completion status (for a specific user)
  */
 export async function updateTaskCompletion(
+  userId: string,
   id: string,
   completed: boolean
 ): Promise<TaskRecord> {
@@ -224,11 +236,11 @@ export async function updateTaskCompletion(
     UPDATE tasks
     SET completed = $1,
         completed_at = CASE WHEN $1 THEN CURRENT_TIMESTAMP ELSE NULL END
-    WHERE id = $2
+    WHERE user_id = $2 AND id = $3
     RETURNING *
   `;
 
-  const result = await db.query(query, [completed, id]);
+  const result = await db.query(query, [completed, userId, id]);
 
   if (result.rows.length === 0) {
     throw new Error(`Task with id ${id} not found`);
@@ -238,9 +250,10 @@ export async function updateTaskCompletion(
 }
 
 /**
- * Update task
+ * Update task (for a specific user)
  */
 export async function updateTask(
+  userId: string,
   id: string,
   updates: {
     title?: string;
@@ -284,12 +297,12 @@ export async function updateTask(
     throw new Error('No updates provided');
   }
 
-  values.push(id);
+  values.push(userId, id);
 
   const query = `
     UPDATE tasks
     SET ${setClauses.join(', ')}
-    WHERE id = $${values.length}
+    WHERE user_id = $${values.length - 1} AND id = $${values.length}
     RETURNING *
   `;
 
@@ -303,13 +316,13 @@ export async function updateTask(
 }
 
 /**
- * Delete task by ID
+ * Delete task by ID (for a specific user)
  */
-export async function deleteTask(id: string): Promise<boolean> {
+export async function deleteTask(userId: string, id: string): Promise<boolean> {
   const db = getDbPool();
 
-  const query = 'DELETE FROM tasks WHERE id = $1';
-  const result = await db.query(query, [id]);
+  const query = 'DELETE FROM tasks WHERE user_id = $1 AND id = $2';
+  const result = await db.query(query, [userId, id]);
 
   return result.rowCount !== null && result.rowCount > 0;
 }
@@ -320,6 +333,7 @@ export async function deleteTask(id: string): Promise<boolean> {
 function mapRowToTask(row: Record<string, unknown>): TaskRecord {
   return {
     id: row.id as string,
+    user_id: row.user_id as string,
     transcription_id: row.transcription_id as string,
     ingestion_id: row.ingestion_id as string,
     title: row.title as string,
