@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { VoiceRecorder } from '../components/VoiceRecorder';
 
 interface UploadResponse {
   ingestionId: string;
@@ -42,6 +43,7 @@ interface TranscriptResponse {
 }
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<'upload' | 'microphone'>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('');
   const [translate, setTranslate] = useState(false);
@@ -194,14 +196,124 @@ export default function Home() {
             🎤 Stickies AI - Voice Input Pipeline
           </h1>
           <p className="text-gray-600 mb-8">
-            Upload audio files for transcription using OpenAI Whisper API
+            Upload audio files or record from microphone for transcription using OpenAI Whisper API
           </p>
 
-          {/* Upload Section */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-              Upload Audio File
-            </h2>
+          {/* Tab Navigation */}
+          <div className="mb-6 border-b border-gray-200">
+            <nav className="flex gap-4">
+              <button
+                onClick={() => {
+                  setActiveTab('upload');
+                  setError(null);
+                }}
+                className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
+                  activeTab === 'upload'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📁 Upload File
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('microphone');
+                  setError(null);
+                }}
+                className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
+                  activeTab === 'microphone'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                🎤 Record from Microphone
+              </button>
+            </nav>
+          </div>
+
+          {/* Microphone Recording Section */}
+          {activeTab === 'microphone' && (
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+                Record from Microphone
+              </h2>
+
+              <div className="space-y-4 mb-6">
+                {/* Language Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Language (optional, ISO 639-1 code like 'en', 'es', 'fr')
+                  </label>
+                  <input
+                    type="text"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    placeholder="en"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Translation Toggle */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="translate-mic"
+                    checked={translate}
+                    onChange={(e) => setTranslate(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="translate-mic" className="ml-2 text-sm text-gray-700">
+                    Translate to English (instead of transcribing)
+                  </label>
+                </div>
+
+                {/* Prompt Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Prompt (optional, guides the model's style)
+                  </label>
+                  <input
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="e.g., This is a technical presentation"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Voice Recorder Component */}
+              <VoiceRecorder
+                language={language || undefined}
+                translate={translate}
+                prompt={prompt || undefined}
+                onUploadStart={() => {
+                  setUploading(true);
+                  setError(null);
+                  setStatus(null);
+                  setTranscript(null);
+                }}
+                onUploadComplete={(id) => {
+                  setIngestionId(id);
+                  setUploading(false);
+                  // Start polling for status
+                  setPolling(true);
+                  pollStatus(id);
+                }}
+                onError={(err) => {
+                  setError(err);
+                  setUploading(false);
+                }}
+              />
+            </div>
+          )}
+
+          {/* File Upload Section */}
+          {activeTab === 'upload' && (
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+                Upload Audio File
+              </h2>
 
             <div className="space-y-4">
               {/* File Input */}
@@ -281,7 +393,8 @@ export default function Home() {
                   : 'Upload & Transcribe'}
               </button>
             </div>
-          </div>
+            </div>
+          )}
 
           {/* Error Display */}
           {error && (
