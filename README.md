@@ -323,19 +323,37 @@ lsof -i :3000
 PORT=3001 npm run dev
 ```
 
+## iOS App (Draft)
+
+A React Native (Expo) iOS app is available in `packages/ios`. It records voice, uploads to the web API for transcription and summarization, and displays tasks.
+
+```bash
+cd packages/ios
+npm install
+cp .env.example .env   # Set EXPO_PUBLIC_API_URL (localhost for simulator)
+npm start
+# Press i for iOS Simulator
+```
+
+See [packages/ios/README.md](packages/ios/README.md) for setup and usage.
+
 ## Project Structure
 
 ```
 Stickies-AI/
 ├── packages/
-│   └── web/              # Next.js web application
-│       ├── src/
-│       │   ├── app/      # Next.js app directory (routes, pages)
-│       │   ├── components/  # React components
-│       │   ├── lib/      # Core libraries (db, audio, llm, auth)
-│       │   └── hooks/    # React hooks
-│       ├── .env.example  # Environment variables template
-│       └── README.md     # Web package documentation
+│   ├── web/              # Next.js web application
+│   │   ├── src/
+│   │   │   ├── app/      # Next.js app directory (routes, pages)
+│   │   │   ├── components/  # React components
+│   │   │   ├── lib/      # Core libraries (db, audio, llm, auth)
+│   │   │   └── hooks/    # React hooks
+│   │   ├── .env.example  # Environment variables template
+│   │   └── README.md     # Web package documentation
+│   └── ios/              # Expo React Native iOS app (draft)
+│       ├── app/          # Expo Router screens
+│       ├── src/          # API client, components, hooks
+│       └── README.md     # iOS app documentation
 ├── docker-compose.yml    # Docker Compose configuration
 └── README.md            # This file
 ```
@@ -344,6 +362,7 @@ Stickies-AI/
 
 - [Database Setup Guide](packages/web/DATABASE_SETUP.md)
 - [FFmpeg Setup Guide](packages/web/FFMPEG_SETUP.md)
+- [iOS App (Draft)](packages/ios/README.md)
 - [API Documentation](packages/web/API_DOCUMENTATION.md)
 - [Testing Guide](packages/web/TESTING.md)
 - [Security Guide](packages/web/SECURITY.md)

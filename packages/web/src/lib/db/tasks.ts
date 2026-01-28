@@ -169,7 +169,8 @@ export async function getTasksByIngestionId(
 }
 
 /**
- * Get all tasks for a user with optional filters
+ * Get all tasks for a user with optional filters.
+ * Includes tasks with user_id IS NULL (legacy, pre–user_id migration).
  */
 export async function getTasks(
   userId: string,
@@ -183,7 +184,7 @@ export async function getTasks(
 ): Promise<TaskRecord[]> {
   const db = getDbPool();
 
-  let query = 'SELECT * FROM tasks WHERE user_id = $1';
+  let query = 'SELECT * FROM tasks WHERE (user_id = $1 OR user_id IS NULL)';
   const values: unknown[] = [userId];
   const conditions: string[] = [];
 
@@ -333,7 +334,7 @@ export async function deleteTask(userId: string, id: string): Promise<boolean> {
 function mapRowToTask(row: Record<string, unknown>): TaskRecord {
   return {
     id: row.id as string,
-    user_id: row.user_id as string,
+    user_id: (row.user_id ?? '') as string,
     transcription_id: row.transcription_id as string,
     ingestion_id: row.ingestion_id as string,
     title: row.title as string,

@@ -42,7 +42,7 @@ export function RecordingIndicator({
       {/* Status text */}
       <div className="flex-1">
         <p className="text-sm font-semibold text-red-800">
-          {isPaused ? 'Recording Paused' : 'Recording...'}
+          {isPaused ? 'Recording Paused' : 'Recording in progress'}
         </p>
         <p className="text-xs text-red-600 font-mono">
           {formatDuration(duration)}
