@@ -37,6 +37,19 @@ export interface SummarizeResult {
   tasks: Task[];
 }
 
+export interface LearningSticky {
+  id: string;
+  transcriptionId: string | null;
+  ingestionId: string | null;
+  domain: string | null;
+  concept: string;
+  definition: string;
+  example: string | null;
+  relatedTerms: string[];
+  createdAt: string;
+  metadata: Record<string, unknown> | null;
+}
+
 export const MOCK_USERS = [
   { id: 'shirley', username: 'shirley', displayName: 'Shirley' },
   { id: 'yixiao', username: 'yixiao', displayName: 'Yixiao' },

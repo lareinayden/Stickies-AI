@@ -3,6 +3,8 @@
  * Uses X-User-Id for auth (mock users).
  */
 
+import type { LearningSticky } from '../types';
+
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 function headers(userId: string, contentType?: string): Record<string, string> {
@@ -190,6 +192,48 @@ export async function getTasks(userId: string): Promise<{
   };
 }
 
+export async function createTasksFromText(
+  userId: string,
+  text: string
+): Promise<{
+  tasksCreated: number;
+  tasks: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    type: string;
+    priority: string | null;
+    dueDate: string | null;
+    completed: boolean;
+    createdAt: string;
+  }>;
+}> {
+  const res = await fetch(`${BASE_URL}/api/tasks/from-text`, {
+    method: 'POST',
+    headers: headers(userId, 'application/json'),
+    body: JSON.stringify({ text: text.trim() }),
+  });
+  const json = (await res.json()) as {
+    tasksCreated?: number;
+    tasks?: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      type: string;
+      priority: string | null;
+      dueDate: string | null;
+      completed: boolean;
+      createdAt: string;
+    }>;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Tasks from text failed: ${res.status}`);
+  return {
+    tasksCreated: json.tasksCreated ?? 0,
+    tasks: json.tasks ?? [],
+  };
+}
+
 export async function updateTask(
   userId: string,
   taskId: string,
@@ -221,6 +265,174 @@ export async function updateTask(
     title: json.title!,
     completed: json.completed ?? false,
     completedAt: json.completedAt ?? null,
+  };
+}
+
+export type TaskPatch = {
+  title?: string;
+  description?: string | null;
+  type?: 'task' | 'reminder' | 'note';
+  priority?: 'low' | 'medium' | 'high' | null;
+  dueDate?: string | null;
+  completed?: boolean;
+};
+
+export async function patchTask(
+  userId: string,
+  taskId: string,
+  patch: TaskPatch
+): Promise<{
+  id: string;
+  title: string;
+  description: string | null;
+  type: string;
+  priority: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  completedAt: string | null;
+}> {
+  const res = await fetch(
+    `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
+    {
+      method: 'PATCH',
+      headers: headers(userId, 'application/json'),
+      body: JSON.stringify(patch),
+    }
+  );
+  const json = (await res.json()) as {
+    id?: string;
+    title?: string;
+    description?: string | null;
+    type?: string;
+    priority?: string | null;
+    dueDate?: string | null;
+    completed?: boolean;
+    completedAt?: string | null;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Patch task failed: ${res.status}`);
+  return {
+    id: json.id!,
+    title: json.title ?? '',
+    description: json.description ?? null,
+    type: json.type ?? 'task',
+    priority: json.priority ?? null,
+    dueDate: json.dueDate ?? null,
+    completed: json.completed ?? false,
+    completedAt: json.completedAt ?? null,
+  };
+}
+
+export async function deleteTask(
+  userId: string,
+  taskId: string
+): Promise<void> {
+  const res = await fetch(
+    `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
+    {
+      method: 'DELETE',
+      headers: headers(userId),
+    }
+  );
+  if (!res.ok) {
+    const json = (await res.json()) as { error?: string };
+    throw new Error(json.error || `Delete task failed: ${res.status}`);
+  }
+}
+
+export async function getLearningStickies(
+  userId: string,
+  params?: { domain?: string; limit?: number; offset?: number }
+): Promise<{ learningStickies: LearningSticky[]; count: number }> {
+  const search = new URLSearchParams();
+  if (params?.domain) search.set('domain', params.domain);
+  if (params?.limit) search.set('limit', String(params.limit));
+  if (params?.offset) search.set('offset', String(params.offset));
+  const qs = search.toString();
+  const url = `${BASE_URL}/api/learning-stickies${qs ? `?${qs}` : ''}`;
+  const res = await fetch(url, { headers: headers(userId) });
+  const json = (await res.json()) as {
+    learningStickies?: LearningSticky[];
+    count?: number;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Learning stickies failed: ${res.status}`);
+  return {
+    learningStickies: json.learningStickies ?? [],
+    count: json.count ?? 0,
+  };
+}
+
+export type { LearningSticky } from '../types';
+
+export async function getLearningStickiesDomains(
+  userId: string
+): Promise<{ domains: Array<{ domain: string; count: number }> }> {
+  const res = await fetch(`${BASE_URL}/api/learning-stickies/domains`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as {
+    domains?: Array<{ domain: string; count: number }>;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Domains failed: ${res.status}`);
+  return { domains: json.domains ?? [] };
+}
+
+export async function deleteLearningSticky(
+  userId: string,
+  id: string
+): Promise<void> {
+  const res = await fetch(
+    `${BASE_URL}/api/learning-stickies?id=${encodeURIComponent(id)}`,
+    { method: 'DELETE', headers: headers(userId) }
+  );
+  if (!res.ok) {
+    const json = (await res.json()) as { error?: string };
+    throw new Error(json.error || `Delete failed: ${res.status}`);
+  }
+}
+
+export async function deleteLearningStickiesByDomain(
+  userId: string,
+  domain: string
+): Promise<{ count: number }> {
+  const res = await fetch(
+    `${BASE_URL}/api/learning-stickies?domain=${encodeURIComponent(domain)}`,
+    { method: 'DELETE', headers: headers(userId) }
+  );
+  const json = (await res.json()) as { count?: number; error?: string };
+  if (!res.ok) throw new Error(json.error || `Delete failed: ${res.status}`);
+  return { count: json.count ?? 0 };
+}
+
+export async function generateLearningStickies(
+  userId: string,
+  domain: string,
+  refine?: string
+): Promise<{
+  domain: string;
+  learningStickiesCreated: number;
+  learningStickies: LearningSticky[];
+}> {
+  const body: { domain: string; refine?: string } = { domain };
+  if (refine?.trim()) body.refine = refine.trim();
+  const res = await fetch(`${BASE_URL}/api/learning-stickies/generate`, {
+    method: 'POST',
+    headers: headers(userId, 'application/json'),
+    body: JSON.stringify(body),
+  });
+  const json = (await res.json()) as {
+    domain?: string;
+    learningStickiesCreated?: number;
+    learningStickies?: LearningSticky[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Generate failed: ${res.status}`);
+  return {
+    domain: json.domain ?? domain,
+    learningStickiesCreated: json.learningStickiesCreated ?? 0,
+    learningStickies: json.learningStickies ?? [],
   };
 }
 

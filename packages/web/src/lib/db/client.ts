@@ -6,8 +6,11 @@ import { Pool, PoolConfig } from 'pg';
 import {
   TRANSCRIPTIONS_TABLE_SCHEMA,
   TASKS_TABLE_SCHEMA,
+  LEARNING_STICKIES_TABLE_SCHEMA,
   MIGRATE_TRANSCRIPTIONS_USER_ID,
   MIGRATE_TASKS_USER_ID,
+  MIGRATE_LEARNING_STICKIES_USER_ID,
+  MIGRATE_LEARNING_STICKIES_DOMAIN,
 } from './schema';
 
 let pool: Pool | null = null;
@@ -54,11 +57,14 @@ export async function initializeDatabase(): Promise<void> {
     // Create tables if they don't exist
     await db.query(TRANSCRIPTIONS_TABLE_SCHEMA);
     await db.query(TASKS_TABLE_SCHEMA);
-    
+    await db.query(LEARNING_STICKIES_TABLE_SCHEMA);
+
     // Run migrations to add user_id columns if they don't exist
     await db.query(MIGRATE_TRANSCRIPTIONS_USER_ID);
     await db.query(MIGRATE_TASKS_USER_ID);
-    
+    await db.query(MIGRATE_LEARNING_STICKIES_USER_ID);
+    await db.query(MIGRATE_LEARNING_STICKIES_DOMAIN);
+
     console.log('Database schema initialized successfully');
   } catch (error) {
     console.error('Error initializing database schema:', error);

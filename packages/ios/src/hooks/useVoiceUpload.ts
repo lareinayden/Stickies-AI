@@ -1,9 +1,10 @@
 /**
  * Record → upload → poll status → summarize.
  * Uses expo-av for recording and our API client.
+ * Manual start/stop and cancel; real-time duration.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
 import {
   uploadVoice,
@@ -28,14 +29,38 @@ export function useVoiceUpload(userId: string | null) {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [ingestionId, setIngestionId] = useState<string | null>(null);
+  const [recordingDurationSeconds, setRecordingDurationSeconds] = useState(0);
+  /** Current metering in dBFS (-160 to 0). Only set while recording; used for soundwave. */
+  const [meteringDb, setMeteringDb] = useState<number | null>(null);
+
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearTimer();
+      recordingRef.current = null;
+    };
+  }, [clearTimer]);
 
   const reset = useCallback(() => {
+    clearTimer();
+    recordingRef.current = null;
     setPhase('idle');
     setError(null);
     setTranscript(null);
     setTasks([]);
     setIngestionId(null);
-  }, []);
+    setRecordingDurationSeconds(0);
+    setMeteringDb(null);
+  }, [clearTimer]);
 
   const updateTaskInList = useCallback((taskId: string, completed: boolean) => {
     setTasks((prev) =>
@@ -47,7 +72,7 @@ export function useVoiceUpload(userId: string | null) {
     );
   }, []);
 
-  const recordAndUpload = useCallback(async () => {
+  const startRecording = useCallback(async () => {
     if (!userId) {
       setError('Not logged in');
       setPhase('error');
@@ -55,9 +80,8 @@ export function useVoiceUpload(userId: string | null) {
     }
 
     setError(null);
+    setRecordingDurationSeconds(0);
     setPhase('recording');
-
-    let recording: Audio.Recording | null = null;
 
     try {
       const { granted } = await Audio.requestPermissionsAsync();
@@ -73,16 +97,32 @@ export function useVoiceUpload(userId: string | null) {
         playThroughEarpieceAndroid: false,
       });
 
-      const { recording: rec } = await Audio.Recording.createAsync(
+      const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-      recording = rec;
+      recordingRef.current = recording;
 
-      // Record for 10 seconds (draft). Increase or add stop button for production.
-      await new Promise<void>((resolve) => setTimeout(resolve, 10_000));
-      await rec.stopAndUnloadAsync();
-      const uri = rec.getURI();
-      if (!uri) throw new Error('No recording URI');
+      recording.setProgressUpdateInterval(80);
+      recording.setOnRecordingStatusUpdate((status) => {
+        if (typeof status.metering === 'number') {
+          setMeteringDb(status.metering);
+        }
+      });
+
+      clearTimer();
+      timerRef.current = setInterval(() => {
+        setRecordingDurationSeconds((s) => s + 1);
+      }, 1000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+      setPhase('error');
+      recordingRef.current = null;
+    }
+  }, [userId, clearTimer]);
+
+  const uploadAndSummarize = useCallback(
+    async (uri: string) => {
+      if (!userId) return;
 
       setPhase('uploading');
       const { ingestionId: id, status } = await uploadVoice(userId, uri, 'en');
@@ -93,7 +133,6 @@ export function useVoiceUpload(userId: string | null) {
       }
 
       setPhase('transcribing');
-      // Poll until completed
       for (let i = 0; i < 60; i++) {
         const { status: st } = await getStatus(userId, id);
         if (st === 'completed') break;
@@ -103,9 +142,17 @@ export function useVoiceUpload(userId: string | null) {
 
       const tr = await getTranscript(userId, id);
       setTranscript(tr.transcript ?? '');
+      setPhase('done');
+    },
+    [userId]
+  );
 
-      setPhase('summarizing');
-      const sum = await summarizeTranscript(userId, id);
+  const extractTasksFromVoice = useCallback(async () => {
+    if (!userId || !ingestionId || !transcript) return;
+    setPhase('summarizing');
+    setError(null);
+    try {
+      const sum = await summarizeTranscript(userId, ingestionId);
       setTasks(
         sum.tasks.map((t) => ({
           id: t.id,
@@ -119,18 +166,50 @@ export function useVoiceUpload(userId: string | null) {
           createdAt: t.createdAt,
         }))
       );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to extract tasks');
+    } finally {
       setPhase('done');
+    }
+  }, [userId, ingestionId, transcript]);
+
+  const stopAndUpload = useCallback(async () => {
+    const rec = recordingRef.current;
+    if (!rec || phase !== 'recording') return;
+
+    clearTimer();
+    recordingRef.current = null;
+    setMeteringDb(null);
+    setPhase('uploading');
+
+    try {
+      await rec.stopAndUnloadAsync();
+      const uri = rec.getURI();
+      if (!uri) {
+        throw new Error('No recording URI');
+      }
+      await uploadAndSummarize(uri);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
       setPhase('error');
-    } finally {
-      if (recording) {
-        try {
-          await recording.stopAndUnloadAsync();
-        } catch (_) {}
-      }
     }
-  }, [userId]);
+  }, [phase, clearTimer, uploadAndSummarize]);
+
+  const cancelRecording = useCallback(async () => {
+    const rec = recordingRef.current;
+    if (!rec || phase !== 'recording') return;
+
+    clearTimer();
+    recordingRef.current = null;
+    setRecordingDurationSeconds(0);
+    setMeteringDb(null);
+    setPhase('idle');
+    setError(null);
+
+    try {
+      await rec.stopAndUnloadAsync();
+    } catch (_) {}
+  }, [phase, clearTimer]);
 
   return {
     phase,
@@ -138,8 +217,13 @@ export function useVoiceUpload(userId: string | null) {
     transcript,
     tasks,
     ingestionId,
-    recordAndUpload,
+    recordingDurationSeconds,
+    meteringDb,
+    startRecording,
+    stopAndUpload,
+    cancelRecording,
     reset,
     updateTaskInList,
+    extractTasksFromVoice,
   };
 }

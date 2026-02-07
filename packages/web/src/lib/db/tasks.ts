@@ -123,6 +123,66 @@ export async function createTasks(
 }
 
 /**
+ * Create multiple tasks from typed text (no voice transcript).
+ * Uses ingestion_id like "text:uuid" and transcription_id = null.
+ */
+export async function createTasksFromText(
+  userId: string,
+  ingestionId: string,
+  tasks: Array<{
+    title: string;
+    description?: string | null;
+    type?: 'task' | 'reminder' | 'note';
+    priority?: 'low' | 'medium' | 'high' | null;
+    dueDate?: Date | null;
+    metadata?: Record<string, unknown> | null;
+  }>
+): Promise<TaskRecord[]> {
+  const db = getDbPool();
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const createdTasks: TaskRecord[] = [];
+    for (const task of tasks) {
+      const query = `
+        INSERT INTO tasks (
+          user_id,
+          transcription_id,
+          ingestion_id,
+          title,
+          description,
+          type,
+          priority,
+          due_date,
+          metadata
+        )
+        VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `;
+      const values = [
+        userId,
+        ingestionId,
+        task.title,
+        task.description || null,
+        task.type || 'task',
+        task.priority || null,
+        task.dueDate || null,
+        task.metadata ? JSON.stringify(task.metadata) : null,
+      ];
+      const result = await client.query(query, values);
+      createdTasks.push(mapRowToTask(result.rows[0]));
+    }
+    await client.query('COMMIT');
+    return createdTasks;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Get task by ID (for a specific user)
  */
 export async function getTaskById(userId: string, id: string): Promise<TaskRecord | null> {
@@ -335,7 +395,7 @@ function mapRowToTask(row: Record<string, unknown>): TaskRecord {
   return {
     id: row.id as string,
     user_id: (row.user_id ?? '') as string,
-    transcription_id: row.transcription_id as string,
+    transcription_id: (row.transcription_id as string) ?? null,
     ingestion_id: row.ingestion_id as string,
     title: row.title as string,
     description: row.description as string | null,

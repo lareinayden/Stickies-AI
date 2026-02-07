@@ -6,11 +6,17 @@ import {
   FlatList,
   ScrollView,
   RefreshControl,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TaskCard } from '../../src/components/TaskCard';
-import { getTasks, updateTask } from '../../src/api/client';
+import { StickyCard } from '../../src/components/StickyCard';
+import { getTasks, updateTask, patchTask, deleteTask } from '../../src/api/client';
+import { StickiesColors } from '../../src/theme/stickies';
 import type { Task } from '../../src/types';
 
 const USER_KEY = 'stickies_user_id';
@@ -21,6 +27,15 @@ export default function Tasks() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    dueDate: '',
+    type: 'task' as 'task' | 'reminder' | 'note',
+    priority: '' as '' | 'low' | 'medium' | 'high',
+  });
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     const uid = await AsyncStorage.getItem(USER_KEY);
@@ -70,10 +85,75 @@ export default function Tasks() {
     [userId]
   );
 
+  const openEdit = useCallback((task: Task) => {
+    setEditingTask(task);
+    setEditForm({
+      title: task.title,
+      description: task.description ?? '',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '',
+      type: task.type,
+      priority: task.priority ?? '',
+    });
+  }, []);
+
+  const closeEdit = useCallback(() => {
+    setEditingTask(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!userId || !editingTask) return;
+    const title = editForm.title.trim();
+    if (!title) return;
+    setSaving(true);
+    try {
+      const updated = await patchTask(userId, editingTask.id, {
+        title,
+        description: editForm.description.trim() || null,
+        type: editForm.type,
+        priority: editForm.priority || null,
+        dueDate: editForm.dueDate.trim() || null,
+      });
+      setTasks((prev) =>
+        prev.map((t) => (t.id === editingTask.id ? { ...t, ...updated } : t))
+      );
+      closeEdit();
+    } catch (_) {
+      Alert.alert('Error', 'Could not save changes.');
+    } finally {
+      setSaving(false);
+    }
+  }, [userId, editingTask, editForm, closeEdit]);
+
+  const handleDeleteInModal = useCallback(() => {
+    if (!userId || !editingTask) return;
+    Alert.alert(
+      'Delete task',
+      `Delete "${editingTask.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTask(userId, editingTask.id);
+              setTasks((prev) => prev.filter((t) => t.id !== editingTask.id));
+              setEditingTask(null);
+            } catch (_) {
+              Alert.alert('Error', 'Could not delete task.');
+            }
+          },
+        },
+      ]
+    );
+  }, [userId, editingTask]);
+
   if (!userId) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.empty}>Log in to see tasks.</Text>
+        <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
+          <Text style={styles.empty}>Log in to see tasks.</Text>
+        </StickyCard>
       </View>
     );
   }
@@ -81,15 +161,17 @@ export default function Tasks() {
   if (fetchError && tasks.length === 0) {
     return (
       <ScrollView
-        style={{ flex: 1, backgroundColor: '#f8fafc' }}
+        style={styles.container}
         contentContainerStyle={[styles.centered, { flexGrow: 1 }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={StickiesColors.inkMuted} />
         }
       >
-        <Text style={styles.errorTitle}>Could not load tasks</Text>
-        <Text style={styles.empty}>{fetchError}</Text>
-        <Text style={styles.hint}>Pull down to retry.</Text>
+        <StickyCard backgroundColor={StickiesColors.pink} softShadow style={styles.emptySticky}>
+          <Text style={styles.errorTitle}>Could not load tasks</Text>
+          <Text style={styles.empty}>{fetchError}</Text>
+          <Text style={styles.hint}>Pull down to retry.</Text>
+        </StickyCard>
       </ScrollView>
     );
   }
@@ -97,7 +179,9 @@ export default function Tasks() {
   if (loading && tasks.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.empty}>Loading…</Text>
+        <StickyCard backgroundColor={StickiesColors.blue} softShadow style={styles.emptySticky}>
+          <Text style={styles.empty}>Loading…</Text>
+        </StickyCard>
       </View>
     );
   }
@@ -105,51 +189,264 @@ export default function Tasks() {
   if (tasks.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.empty}>No tasks yet. Record voice on Home to create some.</Text>
+        <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
+          <Text style={styles.empty}>No tasks yet. Record voice on Home to create some.</Text>
+        </StickyCard>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={tasks}
-      keyExtractor={(t) => t.id}
-      renderItem={({ item }) => (
-        <TaskCard task={item} onToggleComplete={handleToggle} />
-      )}
-      contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    />
+    <>
+      <FlatList
+        data={tasks}
+        keyExtractor={(t) => t.id}
+        renderItem={({ item }) => (
+          <TaskCard
+            task={item}
+            onToggleComplete={handleToggle}
+            onPress={openEdit}
+          />
+        )}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      />
+      <Modal
+        visible={!!editingTask}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeEdit}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={closeEdit}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit task</Text>
+            <TouchableOpacity onPress={handleSaveEdit} disabled={saving}>
+              <Text style={[styles.modalSave, saving && styles.modalSaveDisabled]}>
+                {saving ? 'Saving…' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalLabel}>Title</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editForm.title}
+              onChangeText={(text) => setEditForm((f) => ({ ...f, title: text }))}
+              placeholder="Task title"
+              placeholderTextColor={StickiesColors.inkLight}
+            />
+            <Text style={styles.modalLabel}>Description (optional)</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalInputMultiline]}
+              value={editForm.description}
+              onChangeText={(text) => setEditForm((f) => ({ ...f, description: text }))}
+              placeholder="Details"
+              placeholderTextColor={StickiesColors.inkLight}
+              multiline
+              numberOfLines={3}
+            />
+            <Text style={styles.modalLabel}>Due date (optional, YYYY-MM-DD)</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editForm.dueDate}
+              onChangeText={(text) => setEditForm((f) => ({ ...f, dueDate: text }))}
+              placeholder="2025-01-25"
+              placeholderTextColor={StickiesColors.inkLight}
+              keyboardType="numbers-and-punctuation"
+            />
+            <Text style={styles.modalLabel}>Type</Text>
+            <View style={styles.modalRow}>
+              {(['task', 'reminder', 'note'] as const).map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.modalChip,
+                    editForm.type === t && styles.modalChipSelected,
+                  ]}
+                  onPress={() => setEditForm((f) => ({ ...f, type: t }))}
+                >
+                  <Text
+                    style={[
+                      styles.modalChipText,
+                      editForm.type === t && styles.modalChipTextSelected,
+                    ]}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.modalLabel}>Priority</Text>
+            <View style={styles.modalRow}>
+              {(['', 'low', 'medium', 'high'] as const).map((p) => (
+                <TouchableOpacity
+                  key={p || 'none'}
+                  style={[
+                    styles.modalChip,
+                    editForm.priority === p && styles.modalChipSelected,
+                  ]}
+                  onPress={() => setEditForm((f) => ({ ...f, priority: p }))}
+                >
+                  <Text
+                    style={[
+                      styles.modalChipText,
+                      editForm.priority === p && styles.modalChipTextSelected,
+                    ]}
+                  >
+                    {p ? p.charAt(0).toUpperCase() + p.slice(1) : 'None'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.modalDeleteButton}
+              onPress={handleDeleteInModal}
+            >
+              <Text style={styles.modalDeleteButtonText}>Delete task</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 16, paddingBottom: 32 },
+  container: {
+    flex: 1,
+    backgroundColor: StickiesColors.desk,
+  },
+  list: {
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: StickiesColors.desk,
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: StickiesColors.desk,
+    padding: 24,
+  },
+  emptySticky: {
+    maxWidth: 320,
   },
   empty: {
     fontSize: 16,
-    color: '#64748b',
+    color: StickiesColors.inkMuted,
     textAlign: 'center',
-    paddingHorizontal: 24,
-    marginTop: 8,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0f172a',
+    color: StickiesColors.ink,
+    marginBottom: 8,
   },
   hint: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: StickiesColors.inkLight,
     textAlign: 'center',
-    paddingHorizontal: 24,
     marginTop: 12,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: StickiesColors.desk,
+    paddingTop: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: StickiesColors.ink,
+  },
+  modalCancel: {
+    fontSize: 16,
+    color: StickiesColors.inkMuted,
+  },
+  modalSave: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1d4ed8',
+  },
+  modalSaveDisabled: {
+    opacity: 0.5,
+  },
+  modalBody: {
+    flex: 1,
+    padding: 20,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: StickiesColors.inkMuted,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  modalInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: StickiesColors.grayDark,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    color: StickiesColors.ink,
+  },
+  modalInputMultiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  modalRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  modalChip: {
+    marginRight: 8,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: StickiesColors.gray,
+    borderWidth: 1,
+    borderColor: StickiesColors.grayDark,
+  },
+  modalChipSelected: {
+    backgroundColor: StickiesColors.blue,
+    borderColor: StickiesColors.blueDark,
+  },
+  modalChipText: {
+    fontSize: 14,
+    color: StickiesColors.inkMuted,
+  },
+  modalChipTextSelected: {
+    color: '#1e3a8a',
+    fontWeight: '600',
+  },
+  modalDeleteButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: StickiesColors.error,
+    borderRadius: 10,
+    backgroundColor: 'rgba(185, 28, 28, 0.08)',
+  },
+  modalDeleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: StickiesColors.error,
   },
 });

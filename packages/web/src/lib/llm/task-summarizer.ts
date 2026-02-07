@@ -62,9 +62,10 @@ export class TaskSummarizer {
       day: 'numeric' 
     });
 
-    const systemPrompt = `You are a helpful assistant that extracts tasks, reminders, and notes from voice transcripts. 
-Analyze the transcript and extract actionable items. Return a JSON object with a "tasks" array.
+    const systemPrompt = `You are a helpful assistant that extracts tasks and reminders from voice transcripts.
+Return a JSON object with a single array: "tasks".
 
+TASKS:
 Each task should have:
 - title: A clear, concise title (required)
 - description: Optional detailed description
@@ -93,8 +94,8 @@ IMPORTANT DATE FORMATTING RULES:
   * "day after tomorrow 3pm" should be "${dayAfterTomorrowStr}T15:00:00"
 
 Guidelines:
-- Extract only actionable items (tasks, reminders, notes)
-- If the transcript is just a conversation without tasks, return an empty tasks array
+- Extract only actionable items (tasks, reminders, notes) into tasks
+- If the transcript has no tasks, return an empty tasks array
 - Be concise but clear
 - Infer priority from context (urgent words, deadlines, etc.)
 - Parse dates and times mentioned in the transcript accurately
@@ -118,7 +119,7 @@ Return a JSON object with this structure:
   ]
 }
 
-Remember: dueDate must be in ISO 8601 format (YYYY-MM-DDTHH:MM:SS) WITHOUT the Z suffix, so times are interpreted as local time, not UTC.`;
+Remember: dueDate must be in ISO 8601 format (YYYY-MM-DDTHH:MM:SS) WITHOUT the Z suffix.`;
 
     try {
       const response = await this.client.chat.completions.create({
@@ -160,7 +161,9 @@ Remember: dueDate must be in ISO 8601 format (YYYY-MM-DDTHH:MM:SS) WITHOUT the Z
         }
       }
 
-      return parsed;
+      return {
+        tasks: parsed.tasks,
+      };
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw new Error(`Failed to parse LLM response as JSON: ${error.message}`);

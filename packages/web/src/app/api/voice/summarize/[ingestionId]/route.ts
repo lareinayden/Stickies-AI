@@ -51,7 +51,8 @@ export async function POST(
     }
 
     // Check if transcript exists
-    if (!transcription.transcript) {
+    const transcript = transcription.transcript;
+    if (!transcript) {
       return NextResponse.json(
         { error: 'No transcript available for summarization' },
         { status: 400 }
@@ -60,7 +61,7 @@ export async function POST(
 
     // Summarize transcript using LLM
     const summarizer = createTaskSummarizer();
-    const summary = await summarizer.summarizeTranscript(transcription.transcript);
+    const summary = await summarizer.summarizeTranscript(transcript);
 
     // Parse due dates with correction for "tomorrow" and "day after tomorrow" references
     const now = new Date();
@@ -78,7 +79,7 @@ export async function POST(
       if (task.dueDate) {
         // Check if the date string contains relative date references and correct if needed
         const dateStr = task.dueDate.toLowerCase();
-        const transcriptLower = transcription.transcript.toLowerCase();
+        const transcriptLower = transcript.toLowerCase();
         const dateMatch = task.dueDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
         
         // Correct dates based on transcript content

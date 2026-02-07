@@ -274,6 +274,187 @@ curl -X POST http://localhost:3000/api/voice/summarize/1706123456789-550e8400-e2
 
 ---
 
+## Learning Stickies API
+
+Learning stickies are generated from a **domain (area of interest)** that the user provides. The LLM summarizes key concepts for that domain and returns them as stickies (concept, definition, example, related terms). They are stored and can be listed or filtered by domain.
+
+### Base URL
+```
+http://localhost:3000/api/learning-stickies
+```
+
+### 1. Generate Learning Stickies for a Domain
+
+**POST** `/api/learning-stickies/generate`
+
+User provides a domain (e.g. "React hooks", "machine learning", "quantum physics"). The LLM generates key concepts for that domain and stores them as learning stickies. Requires authentication.
+
+#### Request
+
+**Body (JSON):**
+```json
+{
+  "domain": "React hooks"
+}
+```
+
+- `domain` (required): String describing the area of interest (or natural-language goal, e.g. "help me prepare for driver's license test").
+- `refine` (optional): When adding to an existing area, an extra prompt for the LLM (e.g. "add speed limits for school zones"). New stickies are stored under the same `domain`.
+
+#### Response
+
+**Success (200):**
+```json
+{
+  "domain": "React hooks",
+  "learningStickiesCreated": 6,
+  "learningStickies": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440001",
+      "concept": "useState",
+      "definition": "A React Hook that lets you add state to function components.",
+      "example": "const [count, setCount] = useState(0);",
+      "relatedTerms": ["Hook", "state", "re-render"],
+      "domain": "React hooks",
+      "createdAt": "2024-01-23T12:10:00.000Z"
+    }
+  ]
+}
+```
+
+Each learning sticky has: `concept` (string), `definition` (string), `example` (string or null), `relatedTerms` (array of strings).
+
+**Error (400):**
+```json
+{
+  "error": "Request body must include \"domain\": a string describing your area of interest..."
+}
+```
+
+#### Example
+
+```bash
+curl -X POST http://localhost:3000/api/learning-stickies/generate \
+  -H "Content-Type: application/json" \
+  -d '{"domain": "React hooks"}'
+```
+
+---
+
+### 2. Get Areas of Interest (Domains)
+
+**GET** `/api/learning-stickies/domains`
+
+Returns the list of areas of interest (domains) for the authenticated user, with sticky count per domain. Use this to show the main "areas" list before drilling into stickies.
+
+#### Response
+
+**Success (200):**
+```json
+{
+  "domains": [
+    { "domain": "help me prepare for driver's license test", "count": 8 },
+    { "domain": "React hooks", "count": 6 }
+  ]
+}
+```
+
+---
+
+### 3. Get All Learning Stickies
+
+**GET** `/api/learning-stickies`
+
+Get all learning stickies for the authenticated user. Requires authentication.
+
+#### Request
+
+**Query Parameters:**
+- `ingestionId` (optional): Filter by ingestion ID (for voice-derived stickies, if any)
+- `domain` (optional): Filter by domain (area of interest)
+- `limit` (optional): Limit number of results
+- `offset` (optional): Pagination offset
+
+#### Response
+
+**Success (200):**
+```json
+{
+  "learningStickies": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440001",
+      "transcriptionId": null,
+      "ingestionId": null,
+      "domain": "React hooks",
+      "concept": "useState",
+      "definition": "A React Hook that lets you add state to function components.",
+      "example": "const [count, setCount] = useState(0);",
+      "relatedTerms": ["Hook", "state", "re-render"],
+      "createdAt": "2024-01-23T12:10:00.000Z",
+      "metadata": null
+    }
+  ],
+  "count": 1
+}
+```
+
+**Error (401):**
+```json
+{
+  "error": "Authentication required"
+}
+```
+
+#### Example
+
+```bash
+# Get all learning stickies (with auth)
+curl http://localhost:3000/api/learning-stickies
+
+# Filter by domain
+curl "http://localhost:3000/api/learning-stickies?domain=React%20hooks"
+
+# Pagination
+curl "http://localhost:3000/api/learning-stickies?limit=10&offset=0"
+```
+
+---
+
+### 4. Delete Learning Stickies
+
+**DELETE** `/api/learning-stickies`
+
+Delete one sticky or all stickies for an area. Requires authentication.
+
+#### Request
+
+**Query Parameters (one of):**
+- `id`: UUID of a single learning sticky (deletes that sticky).
+- `domain`: Exact domain string (deletes all stickies for that area of interest).
+
+#### Response
+
+**Success (200) – delete one:**
+```json
+{
+  "deleted": true,
+  "id": "770e8400-e29b-41d4-a716-446655440001"
+}
+```
+
+**Success (200) – delete by domain:**
+```json
+{
+  "deleted": true,
+  "domain": "React hooks",
+  "count": 6
+}
+```
+
+**Error (400):** Missing or invalid query parameters.
+
+---
+
 ## Tasks API
 
 ### Base URL
@@ -573,4 +754,12 @@ See `TESTING.md` for detailed testing instructions.
    
    # Get tasks for ingestion
    curl http://localhost:3000/api/tasks/<ingestionId>
+   
+   # Generate learning stickies for a domain (requires auth)
+   curl -X POST http://localhost:3000/api/learning-stickies/generate \
+     -H "Content-Type: application/json" \
+     -d '{"domain": "machine learning"}'
+   
+   # Get learning stickies (requires auth)
+   curl http://localhost:3000/api/learning-stickies
    ```
