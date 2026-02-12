@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,10 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StickyCard } from '../../src/components/StickyCard';
+import { FlipCard } from '../../src/components/FlipCard';
 import {
   getLearningStickiesDomains,
   getLearningStickies,
-  generateLearningStickies,
   deleteLearningSticky,
   deleteLearningStickiesByDomain,
 } from '../../src/api/client';
@@ -27,6 +27,10 @@ import { StickiesColors, colorForArea } from '../../src/theme/stickies';
 import type { LearningSticky } from '../../src/types';
 
 const USER_KEY = 'stickies_user_id';
+const PROGRESS_KEY_PREFIX = 'learningStickyProgress:';
+
+type StickyReviewStatus = 'needs_review' | 'learned';
+type StickyProgressMap = Record<string, StickyReviewStatus>;
 
 export default function LearningStickiesScreen() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -36,11 +40,9 @@ export default function LearningStickiesScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [refineInput, setRefineInput] = useState('');
-  const [refining, setRefining] = useState(false);
-  const [refineError, setRefineError] = useState<string | null>(null);
   const [areasEditMode, setAreasEditMode] = useState(false);
   const [stickiesEditMode, setStickiesEditMode] = useState(false);
+  const [statusById, setStatusById] = useState<Record<string, StickyReviewStatus>>({});
 
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -109,22 +111,6 @@ export default function LearningStickiesScreen() {
     setRefreshing(false);
   }, [selectedDomain, loadDomains, loadAreaStickies]);
 
-  const handleRefine = useCallback(async () => {
-    if (!selectedDomain || !userId) return;
-    setRefining(true);
-    setRefineError(null);
-    try {
-      await generateLearningStickies(userId, selectedDomain, refineInput.trim());
-      setRefineInput('');
-      await loadAreaStickies(selectedDomain);
-      await loadDomains();
-    } catch (e) {
-      setRefineError(e instanceof Error ? e.message : 'Failed to add more');
-    } finally {
-      setRefining(false);
-    }
-  }, [selectedDomain, userId, refineInput, loadAreaStickies, loadDomains]);
-
   const handleRemoveSticky = useCallback(
     async (id: string) => {
       if (!userId) return;
@@ -165,6 +151,17 @@ export default function LearningStickiesScreen() {
     [userId, selectedDomain, loadDomains]
   );
 
+  const sortedAreaStickies = useMemo(() => {
+    const arr = [...areaStickies];
+    arr.sort((a, b) => {
+      const sa = statusById[a.id] ?? 'needs_review';
+      const sb = statusById[b.id] ?? 'needs_review';
+      if (sa !== sb) return sa === 'needs_review' ? -1 : 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    return arr;
+  }, [areaStickies, statusById]);
+
   if (!userId) {
     return (
       <View style={styles.centered}>
@@ -203,35 +200,6 @@ export default function LearningStickiesScreen() {
             ) : null}
           </View>
 
-          <View style={styles.generateSection}>
-            <StickyCard backgroundColor={StickiesColors.orange} softShadow style={styles.generateCard}>
-              <Text style={styles.generateLabel}>Refine or add more (prompt the LLM)</Text>
-              <TextInput
-                style={styles.input}
-                value={refineInput}
-                onChangeText={(t) => {
-                  setRefineInput(t);
-                  setRefineError(null);
-                }}
-                placeholder="e.g. add speed limits for school zones"
-                placeholderTextColor={StickiesColors.inkLight}
-                editable={!refining}
-              />
-              <TouchableOpacity
-                style={[styles.generateButton, refining && styles.generateButtonDisabled]}
-                onPress={handleRefine}
-                disabled={refining}
-              >
-                {refining ? (
-                  <ActivityIndicator size="small" color={StickiesColors.ink} />
-                ) : (
-                  <Text style={styles.generateButtonText}>Add more</Text>
-                )}
-              </TouchableOpacity>
-              {refineError ? <Text style={styles.errorText}>{refineError}</Text> : null}
-            </StickyCard>
-          </View>
-
           {fetchError && areaStickies.length === 0 ? (
             <View style={styles.centeredList}>
               <StickyCard backgroundColor={StickiesColors.pink} softShadow style={styles.emptySticky}>
@@ -255,30 +223,112 @@ export default function LearningStickiesScreen() {
             </View>
           ) : (
             <FlatList
-              data={areaStickies}
+              data={sortedAreaStickies}
               keyExtractor={(s) => s.id}
               contentContainerStyle={styles.list}
+              numColumns={1}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={StickiesColors.inkMuted} />
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={StickiesColors.inkMuted}
+                />
               }
-                renderItem={({ item }) => (
-                  <View style={styles.stickyRow}>
-                    <View style={styles.stickyWrapper}>
-                      <StickyCard backgroundColor={selectedDomain ? colorForArea(selectedDomain) : StickiesColors.blue} softShadow style={styles.stickyCard}>
-                        <Text style={styles.concept}>{item.concept}</Text>
-                        <Text style={styles.definition}>{item.definition}</Text>
-                      </StickyCard>
-                    </View>
-                    {stickiesEditMode && (
-                      <TouchableOpacity
-                        onPress={() => handleRemoveSticky(item.id)}
-                        style={styles.removeStickyButton}
-                      >
-                        <Text style={styles.removeStickyText}>Remove</Text>
-                      </TouchableOpacity>
-                    )}
+              renderItem={({ item }) => {
+                const status = statusById[item.id] ?? 'needs_review';
+                const bg = selectedDomain ? colorForArea(selectedDomain) : StickiesColors.blue;
+                return (
+                  <View
+                    style={[
+                      styles.stickyGridItem,
+                      status === 'learned' && styles.learnedDim,
+                    ]}
+                  >
+                    <FlipCard
+                      borderRadius={20}
+                      style={styles.flipPressable}
+                      cardStyle={[styles.flipCard, { backgroundColor: bg }]}
+                      front={
+                        <View style={styles.flipFaceContent}>
+                          <Text style={styles.concept} numberOfLines={3}>
+                            {item.concept}
+                          </Text>
+                          <Text style={styles.flipHint}>Tap to flip</Text>
+                        </View>
+                      }
+                      back={
+                        <View style={styles.flipFaceContent}>
+                          <Text style={styles.definition} numberOfLines={5}>
+                            {item.definition}
+                          </Text>
+                          {item.example ? (
+                            <Text style={styles.example} numberOfLines={3}>
+                              Example: {item.example}
+                            </Text>
+                          ) : null}
+                          <View style={styles.statusRow}>
+                            <TouchableOpacity
+                              onPress={() =>
+                                setStatusById((prev) => ({
+                                  ...prev,
+                                  [item.id]: 'needs_review',
+                                }))
+                              }
+                              style={[
+                                styles.statusButton,
+                                status === 'needs_review' && styles.statusButtonActive,
+                              ]}
+                              activeOpacity={0.85}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusButtonText,
+                                  status === 'needs_review' &&
+                                    styles.statusButtonTextActive,
+                                ]}
+                              >
+                                Needs review
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() =>
+                                setStatusById((prev) => ({
+                                  ...prev,
+                                  [item.id]: 'learned',
+                                }))
+                              }
+                              style={[
+                                styles.statusButton,
+                                status === 'learned' && styles.statusButtonActive,
+                              ]}
+                              activeOpacity={0.85}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusButtonText,
+                                  status === 'learned' &&
+                                    styles.statusButtonTextActive,
+                                ]}
+                              >
+                                Learned
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                          {stickiesEditMode ? (
+                            <TouchableOpacity
+                              onPress={() => handleRemoveSticky(item.id)}
+                              style={styles.removeInline}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.removeInlineText}>Remove</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      }
+                    />
                   </View>
-                )}
+                );
+              }}
             />
           )}
         </>
@@ -355,6 +405,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: StickiesColors.desk,
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -378,46 +434,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: StickiesColors.ink,
   },
-  generateSection: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  generateCard: {
-    padding: 14,
-  },
-  generateLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: StickiesColors.ink,
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: StickiesColors.grayDark,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: StickiesColors.ink,
-    backgroundColor: '#fff',
-    marginBottom: 10,
-  },
-  generateButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: StickiesColors.orangeDark,
-    borderRadius: 8,
-  },
-  generateButtonDisabled: {
-    opacity: 0.7,
-  },
-  generateButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: StickiesColors.ink,
-  },
   errorText: {
     fontSize: 14,
     color: StickiesColors.error,
@@ -431,6 +447,42 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
     paddingBottom: 32,
+  },
+  stickyGridRow: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  stickyGridItem: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  learnedDim: {
+    opacity: 0.4,
+  },
+  flipPressable: {
+    width: '90%',
+    height: 320,
+  },
+  flipCard: {
+    flex: 1,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  flipFaceContent: {
+    flex: 1,
+    padding: 14,
+    justifyContent: 'center',
+  },
+  flipHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: StickiesColors.inkLight,
+    textAlign: 'center',
   },
   areasEditRow: {
     paddingHorizontal: 16,
@@ -501,11 +553,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: StickiesColors.ink,
     marginBottom: 8,
+    textAlign: 'center',
   },
   definition: {
     fontSize: 15,
     color: StickiesColors.ink,
     lineHeight: 22,
+  },
+  example: {
+    marginTop: 8,
+    fontSize: 13,
+    color: StickiesColors.inkMuted,
+    lineHeight: 18,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  statusButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+  },
+  statusButtonActive: {
+    borderColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  statusButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: StickiesColors.inkMuted,
+  },
+  statusButtonTextActive: {
+    color: StickiesColors.ink,
+  },
+  removeInline: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  removeInlineText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: StickiesColors.error,
   },
   removeStickyButton: {
     paddingVertical: 8,

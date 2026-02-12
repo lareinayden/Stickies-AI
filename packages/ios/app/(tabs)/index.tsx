@@ -16,6 +16,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -86,6 +87,14 @@ export default function Home() {
     if (userId) loadFeed();
     else setLoading(false);
   }, [userId, loadFeed]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        loadFeed();
+      }
+    }, [userId, loadFeed])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
