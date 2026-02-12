@@ -13,7 +13,14 @@ export default function TabsLayout() {
         headerShadowVisible: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarLabel: 'Home' }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarLabel: 'Home',
+          headerShown: false,
+        }}
+      />
       <Tabs.Screen name="tasks" options={{ title: 'Tasks', tabBarLabel: 'Tasks' }} />
       <Tabs.Screen name="learning-stickies" options={{ title: 'Learning', tabBarLabel: 'Learning' }} />
       <Tabs.Screen name="account" options={{ title: 'Account', tabBarLabel: 'Account' }} />
