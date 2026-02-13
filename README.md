@@ -4,15 +4,27 @@ An AI-powered dashboard that transforms voice-captured tasks, technical concepts
 
 ## Prerequisites
 
-Before running the app, ensure you have the following installed:
+### Common Prerequisites (Both Web & iOS)
 
 - **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
+- **OpenAI API Key** - Required for voice transcription and task summarization - [Get API Key](https://platform.openai.com/api-keys)
+
+### Web App Prerequisites
+
 - **PostgreSQL** (v15 or higher) - See [Database Setup](#database-setup) below
 - **FFmpeg** - Required for audio processing - See [FFmpeg Setup](#ffmpeg-setup) below
-- **OpenAI API Key** - Required for voice transcription and task summarization
 - **Docker** (optional) - For running PostgreSQL in a container
 
+### iOS App Prerequisites
+
+- **macOS** - Required for iOS development
+- **Xcode** (latest version) - [Download from App Store](https://apps.apple.com/us/app/xcode/id497799835)
+- **iOS Simulator** - Included with Xcode
+- **Web Backend Running** - The iOS app requires the web backend to be running (see [Web App Setup](#web-app-setup) below)
+
 ## Quick Start
+
+### Web App Quick Start
 
 1. **Clone the repository** (if you haven't already):
    ```bash
@@ -50,7 +62,51 @@ Before running the app, ensure you have the following installed:
    http://localhost:3000
    ```
 
+### iOS App Quick Start
+
+**⚠️ Important:** The iOS app requires the web backend to be running first. Complete the [Web App Setup](#web-app-setup) before proceeding.
+
+1. **Ensure web backend is running** (see [Web App Setup](#web-app-setup) above)
+
+2. **Navigate to the iOS package**:
+   ```bash
+   cd packages/ios
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+4. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+
+5. **Edit `.env` file**:
+   - **For iOS Simulator**: `EXPO_PUBLIC_API_URL=http://localhost:3000`
+   - **For Physical Device**: Use your machine's LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.100:3000`
+   
+   To find your LAN IP:
+   ```bash
+   # macOS/Linux
+   ifconfig | grep "inet " | grep -v 127.0.0.1
+   ```
+
+6. **Start the Expo development server**:
+   ```bash
+   npm start
+   ```
+
+7. **Launch iOS Simulator**:
+   - Press `i` in the Expo terminal, or
+   - Run `npm run ios` in a new terminal
+
+8. **The app should open in the iOS Simulator** and connect to the Metro bundler automatically.
+
 ## Detailed Setup Instructions
+
+## Web App Setup
 
 ### 1. Install Dependencies
 
@@ -198,9 +254,9 @@ Database initialization complete
 Done
 ```
 
-## Running the Application
+### 5. Running the Web App
 
-### Development Mode
+#### Development Mode
 
 Start the Next.js development server:
 
@@ -211,7 +267,7 @@ npm run dev
 
 The app will be available at `http://localhost:3000`.
 
-### Production Build
+#### Production Build
 
 Build and run the production version:
 
@@ -221,7 +277,7 @@ npm run build
 npm start
 ```
 
-## Available Scripts
+### Web App Available Scripts
 
 From the `packages/web` directory:
 
@@ -237,9 +293,9 @@ From the `packages/web` directory:
 - `npm run test:api` - Test API endpoints
 - `npm run test:summarize` - Test task summarization
 
-## Features
+### Web App Features
 
-Once the app is running, you can:
+Once the web app is running, you can:
 
 - **Upload audio files** for transcription using OpenAI Whisper
 - **View transcription status** in real-time
@@ -247,9 +303,9 @@ Once the app is running, you can:
 - **Automatically summarize** transcripts into structured tasks and reminders
 - **Manage tasks** through the API or web interface
 
-## API Documentation
+## Web API Documentation
 
-For detailed API documentation, see [packages/web/API_DOCUMENTATION.md](packages/web/API_DOCUMENTATION.md).
+The iOS app communicates with the web backend API. For detailed API documentation, see [packages/web/API_DOCUMENTATION.md](packages/web/API_DOCUMENTATION.md).
 
 ### Key API Endpoints
 
@@ -262,7 +318,7 @@ For detailed API documentation, see [packages/web/API_DOCUMENTATION.md](packages
 - `PATCH /api/task/:taskId` - Update a task
 - `DELETE /api/task/:taskId` - Delete a task
 
-## Troubleshooting
+## Web App Troubleshooting
 
 ### Database Connection Issues
 
@@ -323,11 +379,182 @@ lsof -i :3000
 PORT=3001 npm run dev
 ```
 
-## iOS App
+## iOS Troubleshooting
+
+### Could Not Connect to Development Server
+
+If you see "Could not connect to development server" error:
+
+1. **Verify Metro bundler is running**:
+   - Check that `npm start` is running in `packages/ios`
+   - You should see "Metro waiting on exp://..." in the terminal
+
+2. **Reload the app**:
+   - Press `r` in the Metro terminal, or
+   - Shake simulator (Cmd+Ctrl+Z) → Reload, or
+   - Press Cmd+R in the simulator
+
+3. **Restart the simulator**:
+   - Close iOS Simulator
+   - Press `i` in the Metro terminal to reopen it
+
+4. **Check Expo Go version**:
+   - If using Expo Go, ensure it matches the SDK version
+   - Update Expo Go from the App Store if needed
+
+5. **Clear Metro cache**:
+   ```bash
+   cd packages/ios
+   npm start -- --reset-cache
+   ```
+
+### Expo Go Version Mismatch
+
+If you see version mismatch warnings:
+
+- **Recommended**: Use the version suggested by Expo
+- **Or**: Switch to development build (press `s` in Metro terminal)
+- **Or**: Update Expo Go from the App Store on your device/simulator
+
+### API Connection Issues
+
+If the app can't connect to the backend:
+
+1. **Verify backend is running**:
+   ```bash
+   # Check if web backend is running
+   curl http://localhost:3000/api/tasks
+   ```
+
+2. **Check `.env` configuration**:
+   - Simulator: `EXPO_PUBLIC_API_URL=http://localhost:3000`
+   - Physical device: Use your machine's LAN IP (not `localhost`)
+
+3. **Find your machine's IP**:
+   ```bash
+   ipconfig getifaddr en0  # macOS
+   ```
+
+4. **Test connectivity from device**:
+   - Open Safari on your device/simulator
+   - Navigate to `http://YOUR_IP:3000`
+   - Should see the web app or API response
+
+### Metro Bundler Port Already in Use
+
+If port 8081 is already in use:
+
+```bash
+# Find what's using the port
+lsof -i :8081
+
+# Kill the process or use a different port
+# In Expo, you can specify a port:
+npx expo start --port 8082
+```
+
+### Xcode or Simulator Issues
+
+- **Simulator won't start**: Open Xcode → Window → Devices and Simulators → Start simulator manually
+- **Build errors**: Run `cd packages/ios && npm install` to ensure dependencies are installed
+- **Permission errors**: Ensure Xcode Command Line Tools are installed: `xcode-select --install`
+
+## iOS App Setup
 
 A React Native (Expo) iOS app is available in `packages/ios` with a polished UI.
 
-### Features
+**⚠️ Prerequisites:** Before setting up the iOS app, ensure:
+1. The web backend is set up and running (see [Web App Setup](#web-app-setup) above)
+2. Xcode is installed on your Mac
+3. iOS Simulator is available (comes with Xcode)
+
+### Step-by-Step iOS Setup
+
+#### 1. Install Dependencies
+
+Navigate to the iOS package and install dependencies:
+
+```bash
+cd packages/ios
+npm install
+```
+
+#### 2. Configure Environment Variables
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set the API URL:
+
+**For iOS Simulator:**
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3000
+```
+
+**For Physical Device:**
+```env
+EXPO_PUBLIC_API_URL=http://YOUR_MACHINE_IP:3000
+```
+
+To find your machine's IP address:
+```bash
+# macOS/Linux
+ifconfig | grep "inet " | grep -v 127.0.0.1
+
+# Or use this command
+ipconfig getifaddr en0
+```
+
+#### 3. Ensure Web Backend is Running
+
+The iOS app requires the web backend to be running. In a separate terminal:
+
+```bash
+cd packages/web
+npm run dev
+```
+
+Verify the backend is accessible:
+- Simulator: `http://localhost:3000` should be reachable
+- Physical device: `http://YOUR_MACHINE_IP:3000` should be reachable from your device
+
+#### 4. Start Expo Development Server
+
+Start the Metro bundler (Expo development server):
+
+```bash
+cd packages/ios
+npm start
+```
+
+You should see:
+- A QR code in the terminal
+- Metro bundler waiting on `exp://...:8081`
+- Options to press `i` for iOS simulator, `a` for Android, etc.
+
+#### 5. Launch iOS Simulator
+
+**Option A: From Expo Terminal**
+- Press `i` in the Expo terminal window
+
+**Option B: From Command Line**
+- In a new terminal: `cd packages/ios && npm run ios`
+
+**Option C: Manual Launch**
+- Open Xcode → Window → Devices and Simulators
+- Start a simulator
+- Shake the simulator (Cmd+Ctrl+Z) → Reload
+
+#### 6. Verify Connection
+
+Once the app opens in the simulator:
+- You should see the login screen
+- If you see "Could not connect to development server", see [Troubleshooting](#ios-troubleshooting) below
+
+### iOS App Features
 
 - **Voice & Text Input** - Record voice or type text to capture thoughts and ideas
 - **Automatic Task Extraction** - AI automatically converts voice/text into structured tasks with titles, descriptions, priorities, and due dates
@@ -338,17 +565,16 @@ A React Native (Expo) iOS app is available in `packages/ios` with a polished UI.
 - **Real-time Transcription** - Live voice transcription with status updates using OpenAI Whisper
 - **Multi-user Support** - Mock user authentication with AsyncStorage persistence
 
-### Quick Start
+### iOS App Available Scripts
 
-```bash
-cd packages/ios
-npm install
-cp .env.example .env   # Set EXPO_PUBLIC_API_URL (localhost for simulator)
-npm start
-# Press i for iOS Simulator
-```
+From the `packages/ios` directory:
 
-### UI Improvements
+- `npm start` - Start Expo development server (Metro bundler)
+- `npm run ios` - Start Expo and launch iOS simulator
+- `npm run android` - Start Expo and launch Android emulator
+- `npm run web` - Start Expo web version
+
+### UI Design
 
 The iOS app features a complete production-ready UI redesign following Apple's Human Interface Guidelines:
 
@@ -357,7 +583,7 @@ The iOS app features a complete production-ready UI redesign following Apple's H
 - ✅ **Calm design** - Pastel colors, subtle shadows
 - ✅ **Encouragement** - Positive empty states and friendly messaging
 
-See [packages/ios/UI_IMPROVEMENTS.md](packages/ios/UI_IMPROVEMENTS.md) for detailed changes and [packages/ios/README.md](packages/ios/README.md) for setup instructions.
+See [packages/ios/UI_IMPROVEMENTS.md](packages/ios/UI_IMPROVEMENTS.md) for detailed changes and [packages/ios/README.md](packages/ios/README.md) for additional setup instructions.
 
 ## Project Structure
 
