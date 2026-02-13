@@ -1,4 +1,8 @@
 # Database Setup Guide
+## Before Start, make sure you are at correct directory by running
+```bash
+cd packages/web
+```
 
 ## Problem
 The error `ECONNREFUSED` on port 5432 means PostgreSQL is not running or not accessible.
@@ -17,6 +21,21 @@ brew services start postgresql@15
 
 # Create database
 createdb stickies_ai
+
+# If encounter: 
+zsh: command not found: createdb
+## On Apple Silicon (most likely):
+echo 'export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+## On Intel Mac:
+echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+## Now verify:
+which createdb
+createdb --version
+## Then create the DB:
+createdb stickies_ai
+
 
 # Set up .env file
 cp .env.example .env
@@ -69,6 +88,7 @@ volumes:
 Then run:
 ```bash
 docker-compose up -d
+cd packages/web
 npm run db:init
 ```
 

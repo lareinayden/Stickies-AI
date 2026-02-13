@@ -102,6 +102,20 @@ An AI-powered dashboard that transforms voice-captured tasks, technical concepts
    - Press `i` in the Expo terminal, or
    - Run `npm run ios` in a new terminal
 
+**⚠️ Important:** If you see any package compatibility error message, make sure to fix it by installing the suggested version! Below is one example:
+```bash
+The following packages should be updated for best compatibility with the installed expo version: 
+@shopify/flash-list@2.2.2 - expected version: 1.7.3 
+expo@52.0.48 - expected version: ~52.0.49 
+react-native@0.76.3 - expected version: 0.76.9 Your project may not work correctly until you install the expected versions of the packages.
+```
+Fix it by running:
+```bash
+npx expo install expo@~52.0.49
+npx expo install react-native@0.76.9
+npx expo install @shopify/flash-list@1.7.3
+```
+
 8. **The app should open in the iOS Simulator** and connect to the Metro bundler automatically.
 
 ## Detailed Setup Instructions
