@@ -1,6 +1,7 @@
 /**
  * Stickies-inspired color palette and shared styles.
  * Pastel sticky-note colors with paper-like shadows.
+ * Apple-inspired typography and spacing system.
  */
 
 export const StickiesColors = {
@@ -32,6 +33,98 @@ export const StickiesColors = {
   // Accents (recording uses pink + ink, no bright red)
   success: '#16a34a',
   error: '#b91c1c',
+} as const;
+
+/**
+ * Apple-inspired typography system
+ * Using system fonts with clear hierarchy
+ */
+export const Typography = {
+  // Large titles (screens)
+  largeTitle: {
+    fontSize: 34,
+    fontWeight: '700' as const,
+    lineHeight: 41,
+    letterSpacing: 0.37,
+  },
+  // Section titles
+  title1: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    lineHeight: 34,
+    letterSpacing: 0.36,
+  },
+  title2: {
+    fontSize: 22,
+    fontWeight: '600' as const,
+    lineHeight: 28,
+    letterSpacing: 0.35,
+  },
+  title3: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    lineHeight: 25,
+    letterSpacing: 0.38,
+  },
+  // Body text
+  body: {
+    fontSize: 17,
+    fontWeight: '400' as const,
+    lineHeight: 22,
+    letterSpacing: -0.41,
+  },
+  bodyEmphasized: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+    letterSpacing: -0.41,
+  },
+  // Small text
+  callout: {
+    fontSize: 16,
+    fontWeight: '400' as const,
+    lineHeight: 21,
+    letterSpacing: -0.32,
+  },
+  subheadline: {
+    fontSize: 15,
+    fontWeight: '400' as const,
+    lineHeight: 20,
+    letterSpacing: -0.24,
+  },
+  footnote: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+    letterSpacing: -0.08,
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 16,
+    letterSpacing: 0,
+  },
+  caption2: {
+    fontSize: 11,
+    fontWeight: '400' as const,
+    lineHeight: 13,
+    letterSpacing: 0.07,
+  },
+} as const;
+
+/**
+ * Spacing system based on 4px grid
+ * Promotes consistent whitespace and minimal cognitive load
+ */
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  xxxxl: 48,
 } as const;
 
 export const StickiesShadow = {

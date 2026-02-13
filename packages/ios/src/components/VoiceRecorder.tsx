@@ -1,5 +1,6 @@
 /**
  * Voice recorder: round button (idle), soundwave + controls (recording), sticky states (done/busy).
+ * With SF Symbols, haptic feedback, and smooth animations.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -11,9 +12,11 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { StickyCard } from './StickyCard';
 import { SoundWave } from './SoundWave';
-import { StickiesColors } from '../theme/stickies';
+import { StickiesColors, Typography, Spacing } from '../theme/stickies';
+import { hapticFeedback } from '../utils/haptics';
 
 type Phase =
   | 'idle'
@@ -67,14 +70,16 @@ export function VoiceRecorder({
     if (!isRecording) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.12,
-          duration: 600,
+        Animated.spring(pulseAnim, {
+          toValue: 1.15,
+          friction: 3,
+          tension: 40,
           useNativeDriver: true,
         }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.92,
-          duration: 600,
+        Animated.spring(pulseAnim, {
+          toValue: 0.88,
+          friction: 3,
+          tension: 40,
           useNativeDriver: true,
         }),
       ])
@@ -100,14 +105,20 @@ export function VoiceRecorder({
         <View style={styles.recordingActions}>
           <TouchableOpacity
             style={[styles.stickyBtn, styles.cancelBtn, styles.cancelBtnMargin]}
-            onPress={onCancelRecording}
+            onPress={() => {
+              hapticFeedback.press();
+              onCancelRecording();
+            }}
             disabled={disabled}
           >
             <Text style={styles.cancelBtnLabel}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.stickyBtn, styles.stopBtn]}
-            onPress={onStopAndUpload}
+            onPress={() => {
+              hapticFeedback.success();
+              onStopAndUpload();
+            }}
             disabled={disabled}
           >
             <Text style={styles.stopBtnLabel}>Stop & Upload</Text>
@@ -151,11 +162,20 @@ export function VoiceRecorder({
     <View style={styles.idleWrap}>
       <TouchableOpacity
         style={[styles.roundButton, disabled && styles.disabled]}
-        onPress={onStartRecord}
+        onPress={() => {
+          hapticFeedback.press();
+          onStartRecord();
+        }}
         disabled={disabled}
         activeOpacity={0.85}
       >
-        <Text style={styles.roundButtonIcon}>🎤</Text>
+        <SymbolView
+          name="mic.fill"
+          tintColor={StickiesColors.ink}
+          size={44}
+          weight="medium"
+          type="hierarchical"
+        />
       </TouchableOpacity>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
@@ -174,18 +194,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  roundButtonIcon: {
-    fontSize: 40,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   stickyBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md + 2,
+    borderRadius: 12,
     minWidth: 140,
     alignItems: 'center',
   },
@@ -193,28 +210,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(28,25,23,0.08)',
   },
   primaryBtnLabel: {
-    color: StickiesColors.ink,
-    fontSize: 16,
+    ...Typography.body,
     fontWeight: '600',
+    color: StickiesColors.ink,
   },
   stopBtn: {
     backgroundColor: StickiesColors.ink,
   },
   stopBtnLabel: {
-    color: StickiesColors.yellow,
-    fontSize: 16,
+    ...Typography.body,
     fontWeight: '600',
+    color: StickiesColors.yellow,
   },
   cancelBtn: {
     backgroundColor: StickiesColors.grayDark,
   },
   cancelBtnLabel: {
-    color: StickiesColors.inkMuted,
-    fontSize: 16,
+    ...Typography.body,
     fontWeight: '600',
+    color: StickiesColors.inkMuted,
   },
   cancelBtnMargin: {
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   busyRow: {
     flexDirection: 'row',

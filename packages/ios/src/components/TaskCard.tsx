@@ -1,18 +1,27 @@
 /**
  * Single task as a sticky note – color by type, paper shadow, checkbox.
  * Edit/Delete are handled by the Tasks screen (one Edit top-right, Remove in edit mode).
+ * Includes haptic feedback and smooth animations.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import { SymbolView } from 'expo-symbols';
 import { StickyCard } from './StickyCard';
-import { stickyColorForTaskType } from '../theme/stickies';
+import { stickyColorForTaskType, StickiesColors, Typography, Spacing } from '../theme/stickies';
+import { hapticFeedback } from '../utils/haptics';
 import type { Task } from '../types';
 
 interface TaskCardProps {
   task: Task;
   onToggleComplete?: (taskId: string, completed: boolean) => void;
   onPress?: (task: Task) => void;
+  onLongPress?: (task: Task) => void;
   /** Slight rotation for sticky effect (e.g. -1, 0.5) */
   rotation?: number;
 }
@@ -21,6 +30,7 @@ export function TaskCard({
   task,
   onToggleComplete,
   onPress,
+  onLongPress,
   rotation = 0,
 }: TaskCardProps) {
   const due = task.dueDate
@@ -33,20 +43,57 @@ export function TaskCard({
     : null;
   const bg = stickyColorForTaskType(task.type);
 
+  // Animated checkbox scale
+  const checkboxScale = useSharedValue(task.completed ? 1 : 0);
+
+  useEffect(() => {
+    checkboxScale.value = withSpring(task.completed ? 1 : 0, {
+      damping: 12,
+      stiffness: 200,
+    });
+  }, [task.completed, checkboxScale]);
+
+  const checkboxAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkboxScale.value }],
+  }));
+
+  const handleToggle = () => {
+    // Haptic feedback based on completion state
+    if (task.completed) {
+      hapticFeedback.toggle();
+    } else {
+      hapticFeedback.complete();
+    }
+    onToggleComplete?.(task.id, !task.completed);
+  };
+
   return (
     <StickyCard backgroundColor={bg} softShadow style={styles.wrapper} rotation={rotation}>
       <TouchableOpacity
         style={styles.row}
-        onPress={() => onPress?.(task)}
-        activeOpacity={onPress ? 0.7 : 1}
-        disabled={!onPress}
+        onPress={() => {
+          hapticFeedback.tap();
+          onPress?.(task);
+        }}
+        onLongPress={() => {
+          hapticFeedback.longPress();
+          onLongPress?.(task);
+        }}
+        delayLongPress={500}
+        activeOpacity={onPress || onLongPress ? 0.7 : 1}
+        disabled={!onPress && !onLongPress}
       >
-        <TouchableOpacity
-          style={styles.toggle}
-          onPress={() => onToggleComplete?.(task.id, !task.completed)}
-        >
+        <TouchableOpacity style={styles.toggle} onPress={handleToggle}>
           <View style={[styles.checkbox, task.completed && styles.checkboxChecked]}>
-            {task.completed ? <Text style={styles.check}>✓</Text> : null}
+            <Animated.View style={checkboxAnimatedStyle}>
+              <SymbolView
+                name="checkmark"
+                tintColor={StickiesColors.yellow}
+                size={16}
+                weight="bold"
+                type="monochrome"
+              />
+            </Animated.View>
           </View>
         </TouchableOpacity>
         <View style={styles.content}>
@@ -70,57 +117,50 @@ export function TaskCard({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 12,
+    marginBottom: Spacing.lg,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   toggle: {
-    marginRight: 12,
+    marginRight: Spacing.md,
     marginTop: 2,
   },
   checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#78716c',
+    borderColor: StickiesColors.inkLight,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.6)',
   },
   checkboxChecked: {
-    backgroundColor: '#1c1917',
-    borderColor: '#1c1917',
-  },
-  check: {
-    color: '#fef9c3',
-    fontSize: 14,
-    fontWeight: 'bold',
+    backgroundColor: StickiesColors.ink,
+    borderColor: StickiesColors.ink,
   },
   content: {
     flex: 1,
   },
   title: {
-    fontSize: 17,
+    ...Typography.body,
     fontWeight: '600',
-    color: '#1c1917',
-    lineHeight: 22,
+    color: StickiesColors.ink,
   },
   titleCompleted: {
     textDecorationLine: 'line-through',
-    color: '#57534e',
+    color: StickiesColors.inkMuted,
   },
   desc: {
-    fontSize: 14,
-    color: '#57534e',
-    marginTop: 4,
-    lineHeight: 20,
+    ...Typography.subheadline,
+    color: StickiesColors.inkMuted,
+    marginTop: Spacing.xs,
   },
   due: {
-    fontSize: 12,
-    color: '#78716c',
-    marginTop: 6,
+    ...Typography.caption,
+    color: StickiesColors.inkLight,
+    marginTop: Spacing.sm,
   },
 });

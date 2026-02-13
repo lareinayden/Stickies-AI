@@ -17,13 +17,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StickyCard } from '../../src/components/StickyCard';
 import { FlipCard } from '../../src/components/FlipCard';
+import { Swipeable } from '../../src/components/Swipeable';
 import {
   getLearningStickiesDomains,
   getLearningStickies,
   deleteLearningSticky,
   deleteLearningStickiesByDomain,
 } from '../../src/api/client';
-import { StickiesColors, colorForArea } from '../../src/theme/stickies';
+import { StickiesColors, colorForArea, Typography, Spacing } from '../../src/theme/stickies';
+import { hapticFeedback } from '../../src/utils/haptics';
 import type { LearningSticky } from '../../src/types';
 
 const USER_KEY = 'stickies_user_id';
@@ -40,8 +42,6 @@ export default function LearningStickiesScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [areasEditMode, setAreasEditMode] = useState(false);
-  const [stickiesEditMode, setStickiesEditMode] = useState(false);
   const [statusById, setStatusById] = useState<Record<string, StickyReviewStatus>>({});
 
   const navigation = useNavigation();
@@ -112,13 +112,29 @@ export default function LearningStickiesScreen() {
   }, [selectedDomain, loadDomains, loadAreaStickies]);
 
   const handleRemoveSticky = useCallback(
-    async (id: string) => {
+    async (sticky: LearningSticky) => {
       if (!userId) return;
-      try {
-        await deleteLearningSticky(userId, id);
-        if (selectedDomain) await loadAreaStickies(selectedDomain);
-        await loadDomains();
-      } catch (_) {}
+      hapticFeedback.delete();
+      Alert.alert(
+        'Delete sticky',
+        `Delete "${sticky.concept}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteLearningSticky(userId, sticky.id);
+                if (selectedDomain) await loadAreaStickies(selectedDomain);
+                await loadDomains();
+              } catch (_) {
+                Alert.alert('Error', 'Could not delete sticky.');
+              }
+            },
+          },
+        ]
+      );
     },
     [userId, selectedDomain, loadAreaStickies, loadDomains]
   );
@@ -126,13 +142,14 @@ export default function LearningStickiesScreen() {
   const handleRemoveAreaFromList = useCallback(
     (domain: string) => {
       if (!userId) return;
+      hapticFeedback.delete();
       Alert.alert(
-        'Remove area',
-        `Remove "${domain}" and all its stickies?`,
+        'Delete learning area',
+        `Delete "${domain}" and all its stickies?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Remove',
+            text: 'Delete',
             style: 'destructive',
             onPress: async () => {
               try {
@@ -142,7 +159,9 @@ export default function LearningStickiesScreen() {
                   setAreaStickies([]);
                 }
                 await loadDomains();
-              } catch (_) {}
+              } catch (_) {
+                Alert.alert('Error', 'Could not delete learning area.');
+              }
             },
           },
         ]
@@ -184,20 +203,15 @@ export default function LearningStickiesScreen() {
           <View style={[styles.detailHeader, { paddingTop: 12 + insets.top }]}>
             <TouchableOpacity
               onPress={() => {
+                hapticFeedback.tap();
                 setSelectedDomain(null);
                 setFetchError(null);
-                setStickiesEditMode(false);
               }}
               style={styles.backButton}
             >
               <Text style={styles.backButtonText}>← Back to areas</Text>
             </TouchableOpacity>
             <Text style={styles.detailTitle} numberOfLines={1}>{selectedDomain}</Text>
-            {areaStickies.length > 0 ? (
-              <TouchableOpacity onPress={() => setStickiesEditMode((v) => !v)} style={styles.editButton}>
-                <Text style={styles.editButtonText}>{stickiesEditMode ? 'Done' : 'Edit'}</Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
 
           {fetchError && areaStickies.length === 0 ? (
@@ -238,14 +252,25 @@ export default function LearningStickiesScreen() {
                 const status = statusById[item.id] ?? 'needs_review';
                 const bg = selectedDomain ? colorForArea(selectedDomain) : StickiesColors.blue;
                 return (
-                  <View
-                    style={[
-                      styles.stickyGridItem,
-                      status === 'learned' && styles.learnedDim,
+                  <Swipeable
+                    rightActions={[
+                      {
+                        label: 'Delete',
+                        icon: 'trash',
+                        color: StickiesColors.error,
+                        type: 'destructive',
+                        onPress: () => handleRemoveSticky(item),
+                      },
                     ]}
                   >
-                    <FlipCard
-                      borderRadius={20}
+                    <View
+                      style={[
+                        styles.stickyGridItem,
+                        status === 'learned' && styles.learnedDim,
+                      ]}
+                    >
+                      <FlipCard
+                        borderRadius={20}
                       style={styles.flipPressable}
                       cardStyle={[styles.flipCard, { backgroundColor: bg }]}
                       front={
@@ -314,19 +339,11 @@ export default function LearningStickiesScreen() {
                               </Text>
                             </TouchableOpacity>
                           </View>
-                          {stickiesEditMode ? (
-                            <TouchableOpacity
-                              onPress={() => handleRemoveSticky(item.id)}
-                              style={styles.removeInline}
-                              activeOpacity={0.85}
-                            >
-                              <Text style={styles.removeInlineText}>Remove</Text>
-                            </TouchableOpacity>
-                          ) : null}
                         </View>
                       }
                     />
-                  </View>
+                    </View>
+                  </Swipeable>
                 );
               }}
             />
@@ -357,42 +374,39 @@ export default function LearningStickiesScreen() {
               </StickyCard>
             </View>
           ) : (
-            <>
-              <View style={styles.areasEditRow}>
-                <TouchableOpacity onPress={() => setAreasEditMode((v) => !v)} style={styles.editButton}>
-                  <Text style={styles.editButtonText}>{areasEditMode ? 'Done' : 'Edit'}</Text>
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={areas}
-                keyExtractor={(a) => a.domain}
-                contentContainerStyle={styles.list}
-                refreshControl={
-                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={StickiesColors.inkMuted} />
-                }
-                renderItem={({ item }) => (
-                  <View style={styles.areaCardRow}>
-                    <TouchableOpacity
-                      style={[styles.areaCard, { backgroundColor: colorForArea(item.domain) }, areasEditMode && styles.areaCardEdit]}
-                      onPress={() => !areasEditMode && setSelectedDomain(item.domain)}
-                      activeOpacity={0.7}
-                      disabled={areasEditMode}
-                    >
-                      <Text style={styles.areaCardTitle}>{item.domain}</Text>
-                      <Text style={styles.areaCardCount}>({item.count} stickies)</Text>
-                    </TouchableOpacity>
-                    {areasEditMode && (
-                      <TouchableOpacity
-                        onPress={() => handleRemoveAreaFromList(item.domain)}
-                        style={styles.areaCardRemove}
-                      >
-                        <Text style={styles.removeAreaText}>Remove</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              />
-            </>
+            <FlatList
+              data={areas}
+              keyExtractor={(a) => a.domain}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={StickiesColors.inkMuted} />
+              }
+              renderItem={({ item }) => (
+                <Swipeable
+                  rightActions={[
+                    {
+                      label: 'Delete',
+                      icon: 'trash',
+                      color: StickiesColors.error,
+                      type: 'destructive',
+                      onPress: () => handleRemoveAreaFromList(item.domain),
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[styles.areaCard, { backgroundColor: colorForArea(item.domain) }]}
+                    onPress={() => {
+                      hapticFeedback.tap();
+                      setSelectedDomain(item.domain);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.areaCardTitle}>{item.domain}</Text>
+                    <Text style={styles.areaCardCount}>({item.count} stickies)</Text>
+                  </TouchableOpacity>
+                </Swipeable>
+              )}
+            />
           )}
         </>
       )}
@@ -512,7 +526,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: StickiesColors.grayDark,
     borderRadius: 12,
-    padding: 16,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'baseline',
     flexWrap: 'wrap',
@@ -526,13 +541,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   areaCardTitle: {
-    fontSize: 17,
+    ...Typography.body,
     fontWeight: '600',
     color: StickiesColors.ink,
     flex: 1,
   },
   areaCardCount: {
-    fontSize: 14,
+    ...Typography.subheadline,
     color: StickiesColors.inkMuted,
   },
   stickyRow: {

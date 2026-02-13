@@ -323,9 +323,22 @@ lsof -i :3000
 PORT=3001 npm run dev
 ```
 
-## iOS App (Draft)
+## iOS App
 
-A React Native (Expo) iOS app is available in `packages/ios`. It records voice, uploads to the web API for transcription and summarization, and displays tasks.
+A React Native (Expo) iOS app is available in `packages/ios` with a polished UI.
+
+### Features
+
+- **Voice & Text Input** - Record voice or type text to capture thoughts and ideas
+- **Automatic Task Extraction** - AI automatically converts voice/text into structured tasks with titles, descriptions, priorities, and due dates
+- **Learning Area Generation** - AI generates flashcard-style learning stickies organized by domain/topic
+- **Flip-Card Learning** - Tap-to-flip flashcards with concept/definition for spaced repetition
+- **Task Management** - View, edit, complete, and delete tasks with full CRUD operations
+- **Feed View** - Unified home feed displaying both tasks and learning stickies
+- **Real-time Transcription** - Live voice transcription with status updates using OpenAI Whisper
+- **Multi-user Support** - Mock user authentication with AsyncStorage persistence
+
+### Quick Start
 
 ```bash
 cd packages/ios
@@ -335,34 +348,63 @@ npm start
 # Press i for iOS Simulator
 ```
 
-See [packages/ios/README.md](packages/ios/README.md) for setup and usage.
+### UI Improvements
+
+The iOS app features a complete production-ready UI redesign following Apple's Human Interface Guidelines:
+
+- ✅ **Minimal cognitive load** - Clear hierarchy, consistent spacing
+- ✅ **Micro-interactions** - Haptic feedback on interactions
+- ✅ **Calm design** - Pastel colors, subtle shadows
+- ✅ **Encouragement** - Positive empty states and friendly messaging
+
+See [packages/ios/UI_IMPROVEMENTS.md](packages/ios/UI_IMPROVEMENTS.md) for detailed changes and [packages/ios/README.md](packages/ios/README.md) for setup instructions.
 
 ## Project Structure
 
 ```
 Stickies-AI/
 ├── packages/
-│   ├── web/              # Next.js web application
+│   ├── web/                      # Next.js web application
 │   │   ├── src/
-│   │   │   ├── app/      # Next.js app directory (routes, pages)
-│   │   │   ├── components/  # React components
-│   │   │   ├── lib/      # Core libraries (db, audio, llm, auth)
-│   │   │   └── hooks/    # React hooks
-│   │   ├── .env.example  # Environment variables template
-│   │   └── README.md     # Web package documentation
-│   └── ios/              # Expo React Native iOS app (draft)
-│       ├── app/          # Expo Router screens
-│       ├── src/          # API client, components, hooks
-│       └── README.md     # iOS app documentation
-├── docker-compose.yml    # Docker Compose configuration
-└── README.md            # This file
+│   │   │   ├── app/              # Next.js app directory (routes, pages)
+│   │   │   ├── components/       # React components
+│   │   │   ├── lib/              # Core libraries (db, audio, llm, auth)
+│   │   │   └── hooks/            # React hooks
+│   │   ├── .env.example          # Environment variables template
+│   │   ├── README.md             # Web package documentation
+│   │   ├── API_DOCUMENTATION.md  # API endpoints documentation
+│   │   ├── DATABASE_SETUP.md     # Database setup guide
+│   │   ├── FFMPEG_SETUP.md       # FFmpeg installation guide
+│   │   ├── TESTING.md            # Testing guide
+│   │   └── SECURITY.md           # Security guide
+│   └── ios/                      # Expo React Native iOS app
+│       ├── app/                  # Expo Router screens
+│       │   ├── (tabs)/           # Tab navigation screens
+│       │   ├── _layout.tsx       # Root layout with gesture handler
+│       │   ├── login.tsx         # User login screen
+│       │   └── add-note.tsx      # Voice/text input modal
+│       ├── src/
+│       │   ├── api/
+│       │   ├── components/       # UI components
+│       │   ├── hooks/            # Custom React hooks
+│       │   ├── theme/
+│       │   ├── utils/
+│       │   └── types/
+│       ├── .env.example          # Environment variables template
+│       ├── package.json          # iOS dependencies
+│       ├── app.json              # Expo configuration
+│       ├── README.md             # iOS app documentation
+│       └── UI_IMPROVEMENTS.md    # UI improvements guide
+├── docker-compose.yml            # Docker Compose configuration
+└── README.md                     # This file
 ```
 
 ## Additional Resources
 
 - [Database Setup Guide](packages/web/DATABASE_SETUP.md)
 - [FFmpeg Setup Guide](packages/web/FFMPEG_SETUP.md)
-- [iOS App (Draft)](packages/ios/README.md)
+- [iOS App Setup](packages/ios/README.md)
+- [iOS UI Improvements](packages/ios/UI_IMPROVEMENTS.md)
 - [API Documentation](packages/web/API_DOCUMENTATION.md)
 - [Testing Guide](packages/web/TESTING.md)
 - [Security Guide](packages/web/SECURITY.md)

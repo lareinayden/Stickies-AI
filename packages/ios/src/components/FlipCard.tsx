@@ -2,6 +2,7 @@
  * Tap-to-flip card (front/back) using Reanimated.
  * - Front is shown by default
  * - Tap toggles to back, tap again toggles to front
+ * - Includes haptic feedback and spring animations
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -10,8 +11,9 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
+import { hapticFeedback } from '../utils/haptics';
 
 export type FlipCardSide = 'front' | 'back';
 
@@ -50,13 +52,20 @@ export function FlipCard({
 
   const flipTo = useCallback(
     (next: FlipCardSide) => {
+      // Haptic feedback for card flip
+      hapticFeedback.flip();
+
       setSide(next);
       onSideChange?.(next);
-      progress.value = withTiming(next === 'back' ? 1 : 0, {
-        duration: durationMs,
+
+      // Spring animation for natural, bouncy feel
+      progress.value = withSpring(next === 'back' ? 1 : 0, {
+        damping: 15,
+        stiffness: 150,
+        mass: 0.8,
       });
     },
-    [durationMs, onSideChange, progress]
+    [onSideChange, progress]
   );
 
   const onPress = useCallback(() => {

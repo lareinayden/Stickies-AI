@@ -15,8 +15,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TaskCard } from '../../src/components/TaskCard';
 import { StickyCard } from '../../src/components/StickyCard';
+import { Swipeable } from '../../src/components/Swipeable';
 import { getTasks, updateTask, patchTask, deleteTask } from '../../src/api/client';
 import { StickiesColors } from '../../src/theme/stickies';
+import { hapticFeedback } from '../../src/utils/haptics';
 import type { Task } from '../../src/types';
 
 const USER_KEY = 'stickies_user_id';
@@ -124,35 +126,43 @@ export default function Tasks() {
     }
   }, [userId, editingTask, editForm, closeEdit]);
 
-  const handleDeleteInModal = useCallback(() => {
-    if (!userId || !editingTask) return;
-    Alert.alert(
-      'Delete task',
-      `Delete "${editingTask.title}"?`,
-      [
+  const handleDelete = useCallback(
+    async (task: Task) => {
+      if (!userId) return;
+      hapticFeedback.delete();
+      Alert.alert('Delete task', `Delete "${task.title}"?`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteTask(userId, editingTask.id);
-              setTasks((prev) => prev.filter((t) => t.id !== editingTask.id));
-              setEditingTask(null);
+              await deleteTask(userId, task.id);
+              setTasks((prev) => prev.filter((t) => t.id !== task.id));
+              if (editingTask?.id === task.id) {
+                setEditingTask(null);
+              }
             } catch (_) {
               Alert.alert('Error', 'Could not delete task.');
             }
           },
         },
-      ]
-    );
-  }, [userId, editingTask]);
+      ]);
+    },
+    [userId, editingTask]
+  );
+
+  const handleDeleteInModal = useCallback(() => {
+    if (!editingTask) return;
+    handleDelete(editingTask);
+  }, [editingTask, handleDelete]);
 
   if (!userId) {
     return (
       <View style={styles.centered}>
         <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
-          <Text style={styles.empty}>Log in to see tasks.</Text>
+          <Text style={styles.emptyTitle}>Welcome!</Text>
+          <Text style={styles.empty}>Sign in to start tracking your tasks.</Text>
         </StickyCard>
       </View>
     );
@@ -190,7 +200,11 @@ export default function Tasks() {
     return (
       <View style={styles.centered}>
         <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
-          <Text style={styles.empty}>No tasks yet. Record voice on Home to create some.</Text>
+          <Text style={styles.emptyTitle}>All clear! ✨</Text>
+          <Text style={styles.empty}>
+            You don't have any tasks yet.{'\n\n'}
+            Tap the + button on Home to record your thoughts, and we'll organize them into tasks for you.
+          </Text>
         </StickyCard>
       </View>
     );
@@ -202,11 +216,37 @@ export default function Tasks() {
         data={tasks}
         keyExtractor={(t) => t.id}
         renderItem={({ item }) => (
-          <TaskCard
-            task={item}
-            onToggleComplete={handleToggle}
-            onPress={openEdit}
-          />
+          <Swipeable
+            rightActions={[
+              {
+                label: 'Delete',
+                icon: 'trash',
+                color: StickiesColors.error,
+                type: 'destructive',
+                onPress: () => handleDelete(item),
+              },
+            ]}
+            leftActions={
+              !item.completed
+                ? [
+                    {
+                      label: 'Complete',
+                      icon: 'checkmark.circle.fill',
+                      color: StickiesColors.success,
+                      type: 'primary',
+                      onPress: () => handleToggle(item.id, true),
+                    },
+                  ]
+                : []
+            }
+          >
+            <TaskCard
+              task={item}
+              onToggleComplete={handleToggle}
+              onPress={openEdit}
+              onLongPress={openEdit}
+            />
+          </Swipeable>
         )}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -335,9 +375,18 @@ const styles = StyleSheet.create({
   },
   emptySticky: {
     maxWidth: 320,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: StickiesColors.ink,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   empty: {
     fontSize: 16,
+    lineHeight: 24,
     color: StickiesColors.inkMuted,
     textAlign: 'center',
   },
@@ -346,6 +395,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: StickiesColors.ink,
     marginBottom: 8,
+    textAlign: 'center',
   },
   hint: {
     fontSize: 14,

@@ -23,7 +23,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { FeedCard, feedCardHeight } from '../../src/components/FeedCard';
 import { getTasks, getLearningStickies } from '../../src/api/client';
-import { StickiesColors } from '../../src/theme/stickies';
+import { StickiesColors, Typography, Spacing } from '../../src/theme/stickies';
+import { hapticFeedback } from '../../src/utils/haptics';
 import type { Task } from '../../src/types';
 import type { LearningSticky } from '../../src/types';
 
@@ -163,9 +164,10 @@ export default function Home() {
             scrollOffset={scrollOffset}
             cardHeight={cardHeight}
           >
-            <Text style={styles.emptyTitle}>No notes yet</Text>
+            <Text style={styles.emptyTitle}>Welcome! ✨</Text>
             <Text style={styles.emptySubtitle}>
-              Tap the + button below to add tasks or create a learning area.
+              Your personal space for capturing thoughts and learning.{'\n\n'}
+              Tap the + button below to get started.
             </Text>
           </FeedCard>
         );
@@ -215,7 +217,10 @@ export default function Home() {
 
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
-        onPress={() => router.push('/add-note')}
+        onPress={() => {
+          hapticFeedback.press();
+          router.push('/add-note');
+        }}
         activeOpacity={0.85}
       >
         <View style={styles.fabInner}>
@@ -242,39 +247,36 @@ const styles = StyleSheet.create({
     backgroundColor: StickiesColors.desk,
   },
   cardLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: '600',
     color: StickiesColors.inkMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 1.2,
+    marginBottom: Spacing.sm,
   },
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...Typography.title2,
     color: StickiesColors.ink,
-    lineHeight: 28,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   cardBody: {
-    fontSize: 16,
+    ...Typography.callout,
     color: StickiesColors.inkMuted,
     lineHeight: 24,
   },
   cardMeta: {
-    fontSize: 13,
+    ...Typography.footnote,
     color: StickiesColors.inkLight,
-    marginTop: 8,
+    marginTop: Spacing.sm,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...Typography.title1,
     color: StickiesColors.ink,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 16,
+    ...Typography.callout,
     color: StickiesColors.inkMuted,
     lineHeight: 24,
     textAlign: 'center',
