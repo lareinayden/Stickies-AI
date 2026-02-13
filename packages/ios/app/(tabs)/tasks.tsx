@@ -12,17 +12,15 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TaskCard } from '../../src/components/TaskCard';
+import { useAuthContext } from '../../src/contexts/AuthContext';
 import { StickyCard } from '../../src/components/StickyCard';
 import { getTasks, updateTask, patchTask, deleteTask } from '../../src/api/client';
 import { StickiesColors } from '../../src/theme/stickies';
 import type { Task } from '../../src/types';
 
-const USER_KEY = 'stickies_user_id';
-
 export default function Tasks() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { auth } = useAuthContext();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,13 +36,11 @@ export default function Tasks() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const uid = await AsyncStorage.getItem(USER_KEY);
-    setUserId(uid);
-    if (!uid) return;
+    if (!auth) return;
     setFetchError(null);
     setLoading(true);
     try {
-      const { tasks: list } = await getTasks(uid);
+      const { tasks: list } = await getTasks(auth);
       setTasks(list ?? []);
     } catch (e) {
       setTasks([]);
@@ -52,7 +48,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [auth]);
 
   useEffect(() => {
     load();
@@ -60,8 +56,8 @@ export default function Tasks() {
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) load();
-    }, [userId, load])
+      if (auth) load();
+    }, [auth, load])
   );
 
   const onRefresh = useCallback(async () => {
@@ -72,9 +68,9 @@ export default function Tasks() {
 
   const handleToggle = useCallback(
     async (taskId: string, completed: boolean) => {
-      if (!userId) return;
+      if (!auth) return;
       try {
-        await updateTask(userId, taskId, { completed });
+        await updateTask(auth, taskId, { completed });
         setTasks((prev) =>
           prev.map((t) =>
             t.id === taskId ? { ...t, completed, completedAt: completed ? new Date().toISOString() : null } : t
@@ -82,7 +78,7 @@ export default function Tasks() {
         );
       } catch (_) {}
     },
-    [userId]
+    [auth]
   );
 
   const openEdit = useCallback((task: Task) => {
@@ -101,12 +97,12 @@ export default function Tasks() {
   }, []);
 
   const handleSaveEdit = useCallback(async () => {
-    if (!userId || !editingTask) return;
+    if (!auth || !editingTask) return;
     const title = editForm.title.trim();
     if (!title) return;
     setSaving(true);
     try {
-      const updated = await patchTask(userId, editingTask.id, {
+      const updated = await patchTask(auth, editingTask.id, {
         title,
         description: editForm.description.trim() || null,
         type: editForm.type,
@@ -122,10 +118,10 @@ export default function Tasks() {
     } finally {
       setSaving(false);
     }
-  }, [userId, editingTask, editForm, closeEdit]);
+  }, [auth, editingTask, editForm, closeEdit]);
 
   const handleDeleteInModal = useCallback(() => {
-    if (!userId || !editingTask) return;
+    if (!auth || !editingTask) return;
     Alert.alert(
       'Delete task',
       `Delete "${editingTask.title}"?`,
@@ -136,7 +132,7 @@ export default function Tasks() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteTask(userId, editingTask.id);
+              await deleteTask(auth, editingTask.id);
               setTasks((prev) => prev.filter((t) => t.id !== editingTask.id));
               setEditingTask(null);
             } catch (_) {
@@ -146,9 +142,9 @@ export default function Tasks() {
         },
       ]
     );
-  }, [userId, editingTask]);
+  }, [auth, editingTask]);
 
-  if (!userId) {
+  if (!auth) {
     return (
       <View style={styles.centered}>
         <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>

@@ -11,6 +11,7 @@ import {
   getStatus,
   getTranscript,
   summarizeTranscript,
+  type Auth,
 } from '../api/client';
 import type { Task } from '../types';
 
@@ -23,7 +24,7 @@ type Phase =
   | 'done'
   | 'error';
 
-export function useVoiceUpload(userId: string | null) {
+export function useVoiceUpload(auth: Auth | null) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export function useVoiceUpload(userId: string | null) {
   }, []);
 
   const startRecording = useCallback(async () => {
-    if (!userId) {
+    if (!auth) {
       setError('Not logged in');
       setPhase('error');
       return;
@@ -118,14 +119,14 @@ export function useVoiceUpload(userId: string | null) {
       setPhase('error');
       recordingRef.current = null;
     }
-  }, [userId, clearTimer]);
+  }, [auth, clearTimer]);
 
   const uploadAndSummarize = useCallback(
     async (uri: string) => {
-      if (!userId) return;
+      if (!auth) return;
 
       setPhase('uploading');
-      const { ingestionId: id, status } = await uploadVoice(userId, uri, 'en');
+      const { ingestionId: id, status } = await uploadVoice(auth, uri, 'en');
       setIngestionId(id);
 
       if (status === 'failed') {
@@ -134,25 +135,25 @@ export function useVoiceUpload(userId: string | null) {
 
       setPhase('transcribing');
       for (let i = 0; i < 60; i++) {
-        const { status: st } = await getStatus(userId, id);
+        const { status: st } = await getStatus(auth, id);
         if (st === 'completed') break;
         if (st === 'failed') throw new Error('Transcription failed');
         await new Promise((r) => setTimeout(r, 1000));
       }
 
-      const tr = await getTranscript(userId, id);
+      const tr = await getTranscript(auth, id);
       setTranscript(tr.transcript ?? '');
       setPhase('done');
     },
-    [userId]
+    [auth]
   );
 
   const extractTasksFromVoice = useCallback(async () => {
-    if (!userId || !ingestionId || !transcript) return;
+    if (!auth || !ingestionId || !transcript) return;
     setPhase('summarizing');
     setError(null);
     try {
-      const sum = await summarizeTranscript(userId, ingestionId);
+      const sum = await summarizeTranscript(auth, ingestionId);
       setTasks(
         sum.tasks.map((t) => ({
           id: t.id,
@@ -171,7 +172,7 @@ export function useVoiceUpload(userId: string | null) {
     } finally {
       setPhase('done');
     }
-  }, [userId, ingestionId, transcript]);
+  }, [auth, ingestionId, transcript]);
 
   const stopAndUpload = useCallback(async () => {
     const rec = recordingRef.current;

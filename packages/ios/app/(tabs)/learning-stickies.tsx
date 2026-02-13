@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthContext } from '../../src/contexts/AuthContext';
 import { StickyCard } from '../../src/components/StickyCard';
 import {
   getLearningStickiesDomains,
@@ -26,10 +26,8 @@ import {
 import { StickiesColors, colorForArea } from '../../src/theme/stickies';
 import type { LearningSticky } from '../../src/types';
 
-const USER_KEY = 'stickies_user_id';
-
 export default function LearningStickiesScreen() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { auth } = useAuthContext();
   const [areas, setAreas] = useState<Array<{ domain: string; count: number }>>([]);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [areaStickies, setAreaStickies] = useState<LearningSticky[]>([]);
@@ -51,13 +49,11 @@ export default function LearningStickiesScreen() {
   }, [selectedDomain, navigation]);
 
   const loadDomains = useCallback(async () => {
-    const uid = await AsyncStorage.getItem(USER_KEY);
-    setUserId(uid);
-    if (!uid) return;
+    if (!auth) return;
     setFetchError(null);
     setLoading(true);
     try {
-      const { domains } = await getLearningStickiesDomains(uid);
+      const { domains } = await getLearningStickiesDomains(auth);
       setAreas(domains);
     } catch (e) {
       setAreas([]);
@@ -65,14 +61,14 @@ export default function LearningStickiesScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [auth]);
 
   const loadAreaStickies = useCallback(async (domain: string) => {
-    if (!userId) return;
+    if (!auth) return;
     setLoading(true);
     setFetchError(null);
     try {
-      const { learningStickies } = await getLearningStickies(userId, { domain });
+      const { learningStickies } = await getLearningStickies(auth, { domain });
       setAreaStickies(learningStickies);
     } catch (e) {
       setAreaStickies([]);
@@ -80,7 +76,7 @@ export default function LearningStickiesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [auth]);
 
   useEffect(() => {
     loadDomains();
@@ -88,15 +84,15 @@ export default function LearningStickiesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) loadDomains();
-    }, [userId, loadDomains])
+      if (auth) loadDomains();
+    }, [auth, loadDomains])
   );
 
   useEffect(() => {
-    if (selectedDomain && userId) {
+    if (selectedDomain && auth) {
       loadAreaStickies(selectedDomain);
     }
-  }, [selectedDomain, userId, loadAreaStickies]);
+  }, [selectedDomain, auth, loadAreaStickies]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -110,11 +106,11 @@ export default function LearningStickiesScreen() {
   }, [selectedDomain, loadDomains, loadAreaStickies]);
 
   const handleRefine = useCallback(async () => {
-    if (!selectedDomain || !userId) return;
+    if (!selectedDomain || !auth) return;
     setRefining(true);
     setRefineError(null);
     try {
-      await generateLearningStickies(userId, selectedDomain, refineInput.trim());
+      await generateLearningStickies(auth, selectedDomain, refineInput.trim());
       setRefineInput('');
       await loadAreaStickies(selectedDomain);
       await loadDomains();
@@ -127,19 +123,19 @@ export default function LearningStickiesScreen() {
 
   const handleRemoveSticky = useCallback(
     async (id: string) => {
-      if (!userId) return;
+      if (!auth) return;
       try {
-        await deleteLearningSticky(userId, id);
+        await deleteLearningSticky(auth, id);
         if (selectedDomain) await loadAreaStickies(selectedDomain);
         await loadDomains();
       } catch (_) {}
     },
-    [userId, selectedDomain, loadAreaStickies, loadDomains]
+    [auth, selectedDomain, loadAreaStickies, loadDomains]
   );
 
   const handleRemoveAreaFromList = useCallback(
     (domain: string) => {
-      if (!userId) return;
+      if (!auth) return;
       Alert.alert(
         'Remove area',
         `Remove "${domain}" and all its stickies?`,
@@ -150,7 +146,7 @@ export default function LearningStickiesScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                await deleteLearningStickiesByDomain(userId, domain);
+                await deleteLearningStickiesByDomain(auth, domain);
                 if (selectedDomain === domain) {
                   setSelectedDomain(null);
                   setAreaStickies([]);
@@ -162,10 +158,10 @@ export default function LearningStickiesScreen() {
         ]
       );
     },
-    [userId, selectedDomain, loadDomains]
+    [auth, selectedDomain, loadDomains]
   );
 
-  if (!userId) {
+  if (!auth) {
     return (
       <View style={styles.centered}>
         <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>

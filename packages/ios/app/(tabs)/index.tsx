@@ -16,7 +16,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthContext } from '../../src/contexts/AuthContext';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -25,8 +25,6 @@ import { getTasks, getLearningStickies } from '../../src/api/client';
 import { StickiesColors } from '../../src/theme/stickies';
 import type { Task } from '../../src/types';
 import type { LearningSticky } from '../../src/types';
-
-const USER_KEY = 'stickies_user_id';
 
 export type FeedItem =
   | { type: 'task'; id: string; createdAt: string; data: Task }
@@ -39,7 +37,7 @@ function feedItemId(item: FeedItem): string {
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { auth } = useAuthContext();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,11 +46,11 @@ export default function Home() {
   const cardHeight = feedCardHeight();
 
   const loadFeed = useCallback(async () => {
-    if (!userId) return;
+    if (!auth) return;
     try {
       const [tasksRes, learnRes] = await Promise.all([
-        getTasks(userId),
-        getLearningStickies(userId, { limit: 50 }),
+        getTasks(auth),
+        getLearningStickies(auth, { limit: 50 }),
       ]);
       const taskItems: FeedItem[] = (tasksRes.tasks || []).map((t) => ({
         type: 'task',
@@ -76,16 +74,12 @@ export default function Home() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userId]);
+  }, [auth]);
 
   useEffect(() => {
-    AsyncStorage.getItem(USER_KEY).then(setUserId);
-  }, []);
-
-  useEffect(() => {
-    if (userId) loadFeed();
+    if (auth) loadFeed();
     else setLoading(false);
-  }, [userId, loadFeed]);
+  }, [auth, loadFeed]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

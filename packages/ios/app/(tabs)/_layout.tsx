@@ -1,7 +1,20 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { StickiesColors } from '../../src/theme/stickies';
+import { useAuthContext } from '../../src/contexts/AuthContext';
 
 export default function TabsLayout() {
+  const router = useRouter();
+  const { auth, loading } = useAuthContext();
+
+  useEffect(() => {
+    if (!loading && !auth) {
+      router.replace('/login');
+    }
+  }, [auth, loading, router]);
+
+  if (!auth && !loading) return null;
+
   return (
     <Tabs
       screenOptions={{

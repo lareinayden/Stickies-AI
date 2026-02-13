@@ -1,16 +1,15 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StickyCard } from '../../src/components/StickyCard';
 import { StickiesColors } from '../../src/theme/stickies';
-
-const USER_KEY = 'stickies_user_id';
+import { useAuthContext } from '../../src/contexts/AuthContext';
 
 export default function Account() {
   const router = useRouter();
+  const { user, signOut } = useAuthContext();
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(USER_KEY);
+    await signOut();
     router.replace('/login');
   };
 
@@ -18,7 +17,13 @@ export default function Account() {
     <View style={styles.container}>
       <StickyCard backgroundColor={StickiesColors.gray} softShadow style={styles.card}>
         <Text style={styles.title}>Account</Text>
-        <Text style={styles.hint}>Mock auth. Log out to switch user.</Text>
+        {user ? (
+          <Text style={styles.hint}>
+            {user.displayName} • {user.accessToken ? 'Signed in with Supabase' : 'Mock user'}
+          </Text>
+        ) : (
+          <Text style={styles.hint}>Not signed in</Text>
+        )}
         <TouchableOpacity style={styles.logout} onPress={handleLogout}>
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>

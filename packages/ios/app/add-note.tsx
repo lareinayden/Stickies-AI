@@ -16,7 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthContext } from '../src/contexts/AuthContext';
 import { VoiceRecorder } from '../src/components/VoiceRecorder';
 import { StickyCard } from '../src/components/StickyCard';
 import { useVoiceUpload } from '../src/hooks/useVoiceUpload';
@@ -26,13 +26,11 @@ import {
 } from '../src/api/client';
 import { StickiesColors, StickiesShadowSoft } from '../src/theme/stickies';
 
-const USER_KEY = 'stickies_user_id';
-
 type InputMode = 'voice' | 'type';
 
 export default function AddNote() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { auth } = useAuthContext();
   const [inputMode, setInputMode] = useState<InputMode>('voice');
   const [textInput, setTextInput] = useState('');
   const [processingTasks, setProcessingTasks] = useState(false);
@@ -50,24 +48,20 @@ export default function AddNote() {
     cancelRecording,
     reset,
     extractTasksFromVoice,
-  } = useVoiceUpload(userId);
-
-  useEffect(() => {
-    AsyncStorage.getItem(USER_KEY).then(setUserId);
-  }, []);
+  } = useVoiceUpload(auth);
 
   const content = inputMode === 'voice' ? (transcript ?? '') : textInput.trim();
   const hasContent = content.length > 0;
 
   const handleExtractTasks = useCallback(async () => {
-    if (!hasContent || !userId) return;
+    if (!hasContent || !auth) return;
     setProcessingTasks(true);
     setHomeError(null);
     try {
       if (inputMode === 'voice') {
         await extractTasksFromVoice();
       } else {
-        const result = await createTasksFromText(userId, content);
+        const result = await createTasksFromText(auth, content);
         if (result.tasksCreated > 0) setTextInput('');
       }
       router.back();
@@ -77,14 +71,14 @@ export default function AddNote() {
     } finally {
       setProcessingTasks(false);
     }
-  }, [hasContent, userId, inputMode, content, extractTasksFromVoice, router]);
+  }, [hasContent, auth, inputMode, content, extractTasksFromVoice, router]);
 
   const handleCreateLearningArea = useCallback(async () => {
-    if (!hasContent || !userId) return;
+    if (!hasContent || !auth) return;
     setProcessingLearn(true);
     setHomeError(null);
     try {
-      await generateLearningStickies(userId, content);
+      await generateLearningStickies(auth, content);
       if (inputMode === 'type') setTextInput('');
       router.back();
       router.push('/(tabs)/learning-stickies');
@@ -93,7 +87,7 @@ export default function AddNote() {
     } finally {
       setProcessingLearn(false);
     }
-  }, [hasContent, userId, inputMode, content, router]);
+  }, [hasContent, auth, inputMode, content, router]);
 
   return (
     <KeyboardAvoidingView
@@ -137,7 +131,7 @@ export default function AddNote() {
                 onStopAndUpload={stopAndUpload}
                 onCancelRecording={cancelRecording}
                 onReset={reset}
-                disabled={!userId}
+                disabled={!auth}
               />
             </View>
           )}
@@ -157,7 +151,7 @@ export default function AddNote() {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                editable={!!userId}
+                editable={!!auth}
               />
             </StickyCard>
           )}

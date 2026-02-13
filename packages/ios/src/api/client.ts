@@ -1,27 +1,44 @@
 /**
  * API client for Stickies AI web backend
- * Uses X-User-Id for auth (mock users).
+ * Auth: Bearer token (Supabase) or X-User-Id (mock users when ALLOW_MOCK_USERS=true)
  */
 
 import type { LearningSticky } from '../types';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
-function headers(userId: string, contentType?: string): Record<string, string> {
-  const h: Record<string, string> = {
-    'X-User-Id': userId,
-  };
+export interface Auth {
+  userId: string;
+  accessToken?: string | null;
+}
+
+function headers(auth: Auth, contentType?: string): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (auth.accessToken) {
+    h['Authorization'] = `Bearer ${auth.accessToken}`;
+  } else {
+    h['X-User-Id'] = auth.userId;
+  }
   if (contentType) {
     h['Content-Type'] = contentType;
   }
   return h;
 }
 
+/** Backward compat: userId string treated as Auth */
+function toAuth(userIdOrAuth: string | Auth): Auth {
+  if (typeof userIdOrAuth === 'string') {
+    return { userId: userIdOrAuth };
+  }
+  return userIdOrAuth;
+}
+
 export async function uploadVoice(
-  userId: string,
+  userIdOrAuth: string | Auth,
   uri: string,
   language = 'en'
 ): Promise<{ ingestionId: string; status: string; error?: string }> {
+  const auth = toAuth(userIdOrAuth);
   const formData = new FormData();
   const name = uri.split('/').pop() || 'recording.m4a';
   formData.append('file', {
@@ -33,9 +50,7 @@ export async function uploadVoice(
 
   const res = await fetch(`${BASE_URL}/api/voice/upload`, {
     method: 'POST',
-    headers: {
-      'X-User-Id': userId,
-    },
+    headers: headers(auth),
     body: formData,
   });
 
@@ -58,12 +73,13 @@ export async function uploadVoice(
 }
 
 export async function getStatus(
-  userId: string,
+  userIdOrAuth: string | Auth,
   ingestionId: string
 ): Promise<{ status: string }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/voice/status/${encodeURIComponent(ingestionId)}`,
-    { headers: headers(userId) }
+    { headers: headers(auth) }
   );
   const json = (await res.json()) as { status?: string; error?: string };
   if (!res.ok) throw new Error(json.error || `Status failed: ${res.status}`);
@@ -71,7 +87,7 @@ export async function getStatus(
 }
 
 export async function getTranscript(
-  userId: string,
+  userIdOrAuth: string | Auth,
   ingestionId: string
 ): Promise<{
   status: string;
@@ -79,9 +95,10 @@ export async function getTranscript(
   language?: string;
   segments?: Array<{ start: number; end: number; text: string }>;
 }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/voice/transcript/${encodeURIComponent(ingestionId)}`,
-    { headers: headers(userId) }
+    { headers: headers(auth) }
   );
   const json = (await res.json()) as {
     status?: string;
@@ -102,7 +119,7 @@ export async function getTranscript(
 }
 
 export async function summarizeTranscript(
-  userId: string,
+  userIdOrAuth: string | Auth,
   ingestionId: string
 ): Promise<{
   ingestionId: string;
@@ -119,11 +136,12 @@ export async function summarizeTranscript(
     createdAt: string;
   }>;
 }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/voice/summarize/${encodeURIComponent(ingestionId)}`,
     {
       method: 'POST',
-      headers: headers(userId, 'application/json'),
+      headers: headers(auth, 'application/json'),
     }
   );
   const json = (await res.json()) as {
@@ -151,7 +169,7 @@ export async function summarizeTranscript(
   };
 }
 
-export async function getTasks(userId: string): Promise<{
+export async function getTasks(userIdOrAuth: string | Auth): Promise<{
   tasks: Array<{
     id: string;
     title: string;
@@ -166,8 +184,9 @@ export async function getTasks(userId: string): Promise<{
   }>;
   count: number;
 }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(`${BASE_URL}/api/tasks`, {
-    headers: headers(userId),
+    headers: headers(auth),
   });
   const json = (await res.json()) as {
     tasks?: Array<{
@@ -193,7 +212,7 @@ export async function getTasks(userId: string): Promise<{
 }
 
 export async function createTasksFromText(
-  userId: string,
+  userIdOrAuth: string | Auth,
   text: string
 ): Promise<{
   tasksCreated: number;
@@ -208,9 +227,10 @@ export async function createTasksFromText(
     createdAt: string;
   }>;
 }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(`${BASE_URL}/api/tasks/from-text`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: headers(auth, 'application/json'),
     body: JSON.stringify({ text: text.trim() }),
   });
   const json = (await res.json()) as {
@@ -235,7 +255,7 @@ export async function createTasksFromText(
 }
 
 export async function updateTask(
-  userId: string,
+  userIdOrAuth: string | Auth,
   taskId: string,
   patch: { completed?: boolean }
 ): Promise<{
@@ -244,11 +264,12 @@ export async function updateTask(
   completed: boolean;
   completedAt: string | null;
 }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
     {
       method: 'PATCH',
-      headers: headers(userId, 'application/json'),
+      headers: headers(auth, 'application/json'),
       body: JSON.stringify(patch),
     }
   );
@@ -278,7 +299,7 @@ export type TaskPatch = {
 };
 
 export async function patchTask(
-  userId: string,
+  userIdOrAuth: string | Auth,
   taskId: string,
   patch: TaskPatch
 ): Promise<{
@@ -291,11 +312,12 @@ export async function patchTask(
   completed: boolean;
   completedAt: string | null;
 }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
     {
       method: 'PATCH',
-      headers: headers(userId, 'application/json'),
+      headers: headers(auth, 'application/json'),
       body: JSON.stringify(patch),
     }
   );
@@ -324,14 +346,15 @@ export async function patchTask(
 }
 
 export async function deleteTask(
-  userId: string,
+  userIdOrAuth: string | Auth,
   taskId: string
 ): Promise<void> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
     {
       method: 'DELETE',
-      headers: headers(userId),
+      headers: headers(auth),
     }
   );
   if (!res.ok) {
@@ -341,16 +364,17 @@ export async function deleteTask(
 }
 
 export async function getLearningStickies(
-  userId: string,
+  userIdOrAuth: string | Auth,
   params?: { domain?: string; limit?: number; offset?: number }
 ): Promise<{ learningStickies: LearningSticky[]; count: number }> {
+  const auth = toAuth(userIdOrAuth);
   const search = new URLSearchParams();
   if (params?.domain) search.set('domain', params.domain);
   if (params?.limit) search.set('limit', String(params.limit));
   if (params?.offset) search.set('offset', String(params.offset));
   const qs = search.toString();
   const url = `${BASE_URL}/api/learning-stickies${qs ? `?${qs}` : ''}`;
-  const res = await fetch(url, { headers: headers(userId) });
+  const res = await fetch(url, { headers: headers(auth) });
   const json = (await res.json()) as {
     learningStickies?: LearningSticky[];
     count?: number;
@@ -366,10 +390,11 @@ export async function getLearningStickies(
 export type { LearningSticky } from '../types';
 
 export async function getLearningStickiesDomains(
-  userId: string
+  userIdOrAuth: string | Auth
 ): Promise<{ domains: Array<{ domain: string; count: number }> }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(`${BASE_URL}/api/learning-stickies/domains`, {
-    headers: headers(userId),
+    headers: headers(auth),
   });
   const json = (await res.json()) as {
     domains?: Array<{ domain: string; count: number }>;
@@ -380,12 +405,13 @@ export async function getLearningStickiesDomains(
 }
 
 export async function deleteLearningSticky(
-  userId: string,
+  userIdOrAuth: string | Auth,
   id: string
 ): Promise<void> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/learning-stickies?id=${encodeURIComponent(id)}`,
-    { method: 'DELETE', headers: headers(userId) }
+    { method: 'DELETE', headers: headers(auth) }
   );
   if (!res.ok) {
     const json = (await res.json()) as { error?: string };
@@ -394,12 +420,13 @@ export async function deleteLearningSticky(
 }
 
 export async function deleteLearningStickiesByDomain(
-  userId: string,
+  userIdOrAuth: string | Auth,
   domain: string
 ): Promise<{ count: number }> {
+  const auth = toAuth(userIdOrAuth);
   const res = await fetch(
     `${BASE_URL}/api/learning-stickies?domain=${encodeURIComponent(domain)}`,
-    { method: 'DELETE', headers: headers(userId) }
+    { method: 'DELETE', headers: headers(auth) }
   );
   const json = (await res.json()) as { count?: number; error?: string };
   if (!res.ok) throw new Error(json.error || `Delete failed: ${res.status}`);
@@ -407,7 +434,7 @@ export async function deleteLearningStickiesByDomain(
 }
 
 export async function generateLearningStickies(
-  userId: string,
+  userIdOrAuth: string | Auth,
   domain: string,
   refine?: string
 ): Promise<{
@@ -415,11 +442,12 @@ export async function generateLearningStickies(
   learningStickiesCreated: number;
   learningStickies: LearningSticky[];
 }> {
+  const auth = toAuth(userIdOrAuth);
   const body: { domain: string; refine?: string } = { domain };
   if (refine?.trim()) body.refine = refine.trim();
   const res = await fetch(`${BASE_URL}/api/learning-stickies/generate`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: headers(auth, 'application/json'),
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as {

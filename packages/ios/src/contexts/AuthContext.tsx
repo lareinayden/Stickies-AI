@@ -1,23 +1,37 @@
 /**
- * Auth hook – Supabase session or mock user fallback
+ * Auth context – provides user + auth object for API calls
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { Session } from '@supabase/supabase-js';
+import type { Auth } from '../api/client';
 
 const MOCK_USER_KEY = 'stickies_user_id';
 
-export interface AuthUser {
+interface AuthUser {
   id: string;
   displayName: string;
   accessToken?: string | null;
 }
 
-export function useAuth() {
+interface AuthContextValue {
+  user: AuthUser | null;
+  auth: Auth | null;
+  loading: boolean;
+  setMockUserId: (id: string | null) => void;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const auth: Auth | null = user
+    ? { userId: user.id, accessToken: user.accessToken ?? undefined }
+    : null;
 
   useEffect(() => {
     const init = async () => {
@@ -26,9 +40,13 @@ export function useAuth() {
         if (session?.user) {
           setUser({
             id: session.user.id,
-            displayName: session.user.user_metadata?.display_name ?? session.user.email?.split('@')[0] ?? 'User',
+            displayName:
+              session.user.user_metadata?.display_name ??
+              session.user.email?.split('@')[0] ??
+              'User',
             accessToken: session.access_token,
           });
+          setLoading(false);
           return;
         }
       }
@@ -38,18 +56,24 @@ export function useAuth() {
       } else {
         setUser(null);
       }
+      setLoading(false);
     };
 
-    init().finally(() => setLoading(false));
+    init();
+  }, []);
 
+  useEffect(() => {
     if (!isSupabaseConfigured) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: string, session: Session | null) => {
+      (_event, session) => {
         if (session?.user) {
           setUser({
             id: session.user.id,
-            displayName: session.user.user_metadata?.display_name ?? session.user.email?.split('@')[0] ?? 'User',
+            displayName:
+              session.user.user_metadata?.display_name ??
+              session.user.email?.split('@')[0] ??
+              'User',
             accessToken: session.access_token,
           });
         } else {
@@ -61,12 +85,12 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const setUserId = useCallback((id: string | null) => {
+  const setMockUserId = useCallback(async (id: string | null) => {
     if (id) {
-      AsyncStorage.setItem(MOCK_USER_KEY, id);
+      await AsyncStorage.setItem(MOCK_USER_KEY, id);
       setUser({ id, displayName: id });
     } else {
-      AsyncStorage.removeItem(MOCK_USER_KEY);
+      await AsyncStorage.removeItem(MOCK_USER_KEY);
       setUser(null);
     }
   }, []);
@@ -79,5 +103,15 @@ export function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, setUserId, signOut, loading };
+  return (
+    <AuthContext.Provider value={{ user, auth, loading, setMockUserId, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuthContext() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
+  return ctx;
 }
