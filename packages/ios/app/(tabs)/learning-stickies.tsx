@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StickyCard } from '../../src/components/StickyCard';
@@ -23,6 +24,9 @@ import {
   getLearningStickies,
   deleteLearningSticky,
   deleteLearningStickiesByDomain,
+  getLearningTaskSettings,
+  upsertLearningTaskSetting,
+  createImmediateLearningTask,
 } from '../../src/api/client';
 import { StickiesColors, colorForArea, Typography, Spacing } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
@@ -43,6 +47,8 @@ export default function LearningStickiesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [statusById, setStatusById] = useState<Record<string, StickyReviewStatus>>({});
+  // domain → frequency_days (0 = off, 1 = daily, 3 = every 3 days, 7 = weekly)
+  const [reviewFrequency, setReviewFrequency] = useState<Record<string, number>>({});
 
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -59,8 +65,14 @@ export default function LearningStickiesScreen() {
     setFetchError(null);
     setLoading(true);
     try {
-      const { domains } = await getLearningStickiesDomains(uid);
+      const [{ domains }, settingsResult] = await Promise.all([
+        getLearningStickiesDomains(uid),
+        getLearningTaskSettings(uid).catch(() => ({ settings: [] })),
+      ]);
       setAreas(domains);
+      const freq: Record<string, number> = {};
+      for (const s of settingsResult.settings) freq[s.domain] = s.frequencyDays;
+      setReviewFrequency(freq);
     } catch (e) {
       setAreas([]);
       setFetchError(e instanceof Error ? e.message : 'Could not load areas');
@@ -168,6 +180,38 @@ export default function LearningStickiesScreen() {
       );
     },
     [userId, selectedDomain, loadDomains]
+  );
+
+  const handleFrequencyChange = useCallback(
+    async (domain: string, days: number) => {
+      if (!userId) return;
+      hapticFeedback.tap();
+      setReviewFrequency((prev) => ({ ...prev, [domain]: days }));
+      try {
+        await upsertLearningTaskSetting(userId, domain, days);
+        // If a frequency was just enabled, immediately create a task and
+        // navigate to Tasks tab so the task is guaranteed to be in the DB
+        // before the Tasks tab loads its list.
+        if (days > 0) {
+          try {
+            await createImmediateLearningTask(userId, domain);
+            // Navigate AFTER creation so useFocusEffect on Tasks tab fires
+            // after the task is already in the database.
+            router.navigate('/(tabs)/tasks');
+          } catch (err) {
+            Alert.alert(
+              'Task not created',
+              err instanceof Error ? err.message : 'Could not create review task.'
+            );
+          }
+        }
+      } catch (_) {
+        // Revert on failure
+        setReviewFrequency((prev) => ({ ...prev, [domain]: prev[domain] ?? 0 }));
+        Alert.alert('Error', 'Could not save review schedule.');
+      }
+    },
+    [userId]
   );
 
   const sortedAreaStickies = useMemo(() => {
@@ -401,8 +445,26 @@ export default function LearningStickiesScreen() {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.areaCardTitle}>{item.domain}</Text>
-                    <Text style={styles.areaCardCount}>({item.count} stickies)</Text>
+                    <View style={styles.areaCardHeader}>
+                      <Text style={styles.areaCardTitle}>{item.domain}</Text>
+                      <Text style={styles.areaCardCount}>({item.count} stickies)</Text>
+                    </View>
+                    <View style={styles.frequencyRow}>
+                      <Text style={styles.frequencyLabel}>Review:</Text>
+                      {([{ label: 'Off', days: 0 }, { label: 'Daily', days: 1 }, { label: '3 days', days: 3 }, { label: 'Weekly', days: 7 }] as const).map(({ label, days }) => {
+                        const active = (reviewFrequency[item.domain] ?? 0) === days;
+                        return (
+                          <TouchableOpacity
+                            key={days}
+                            style={[styles.freqChip, active && styles.freqChipSelected]}
+                            onPress={(e) => { e.stopPropagation(); handleFrequencyChange(item.domain, days); }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.freqChipText, active && styles.freqChipTextSelected]}>{label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </TouchableOpacity>
                 </Swipeable>
               )}
@@ -528,9 +590,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
   },
   areaCardEdit: {
     opacity: 0.95,
@@ -653,5 +713,45 @@ const styles = StyleSheet.create({
     color: StickiesColors.inkLight,
     textAlign: 'center',
     marginTop: 12,
+  },
+  areaCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    width: '100%',
+    marginBottom: 10,
+  },
+  frequencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    width: '100%',
+  },
+  frequencyLabel: {
+    fontSize: 12,
+    color: StickiesColors.inkMuted,
+    marginRight: 2,
+  },
+  freqChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
+  },
+  freqChipSelected: {
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderColor: 'rgba(0,0,0,0.3)',
+  },
+  freqChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: StickiesColors.inkMuted,
+  },
+  freqChipTextSelected: {
+    color: StickiesColors.ink,
+    fontWeight: '700',
   },
 });

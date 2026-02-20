@@ -62,8 +62,8 @@ export default function Tasks() {
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) load();
-    }, [userId, load])
+      load();
+    }, [load])
   );
 
   const onRefresh = useCallback(async () => {

@@ -436,6 +436,81 @@ export async function generateLearningStickies(
   };
 }
 
+export async function getLearningTaskSettings(
+  userId: string
+): Promise<{
+  settings: Array<{ id: string; domain: string; frequencyDays: number; lastGeneratedAt: string | null; createdAt: string }>;
+}> {
+  const res = await fetch(`${BASE_URL}/api/learning-task-settings`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as {
+    settings?: Array<{ id: string; domain: string; frequencyDays: number; lastGeneratedAt: string | null; createdAt: string }>;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Get settings failed: ${res.status}`);
+  return { settings: json.settings ?? [] };
+}
+
+export async function upsertLearningTaskSetting(
+  userId: string,
+  domain: string,
+  frequencyDays: number
+): Promise<{ id: string; domain: string; frequencyDays: number }> {
+  const res = await fetch(`${BASE_URL}/api/learning-task-settings`, {
+    method: 'POST',
+    headers: headers(userId, 'application/json'),
+    body: JSON.stringify({ domain, frequencyDays }),
+  });
+  const json = (await res.json()) as {
+    setting?: { id: string; domain: string; frequencyDays: number };
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Upsert setting failed: ${res.status}`);
+  return json.setting!;
+}
+
+export async function generateLearningTasks(
+  userId: string
+): Promise<{
+  generatedTasks: Array<{ id: string; title: string; type: string; priority: string | null; dueDate: string | null; createdAt: string }>;
+  count: number;
+}> {
+  const res = await fetch(`${BASE_URL}/api/learning-tasks/generate`, {
+    method: 'POST',
+    headers: headers(userId, 'application/json'),
+  });
+  const json = (await res.json()) as {
+    generatedTasks?: Array<{ id: string; title: string; type: string; priority: string | null; dueDate: string | null; createdAt: string }>;
+    count?: number;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Generate tasks failed: ${res.status}`);
+  return { generatedTasks: json.generatedTasks ?? [], count: json.count ?? 0 };
+}
+
+/**
+ * Immediately creates a "Review [domain]" task at 9 AM today.
+ * No LLM — direct DB insert, completes in ~100 ms.
+ * Call this on chip-tap so the task appears in the Tasks tab right away.
+ */
+export async function createImmediateLearningTask(
+  userId: string,
+  domain: string
+): Promise<{ id: string; title: string; dueDate: string | null }> {
+  const res = await fetch(`${BASE_URL}/api/learning-tasks/now`, {
+    method: 'POST',
+    headers: headers(userId, 'application/json'),
+    body: JSON.stringify({ domain }),
+  });
+  const json = (await res.json()) as {
+    task?: { id: string; title: string; dueDate: string | null };
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Create immediate task failed: ${res.status}`);
+  return { id: json.task!.id, title: json.task!.title, dueDate: json.task?.dueDate ?? null };
+}
+
 export async function login(
   baseUrl: string,
   userId: string

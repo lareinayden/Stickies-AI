@@ -1,9 +1,26 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StickiesColors } from '../../src/theme/stickies';
+import { generateLearningTasks } from '../../src/api/client';
+
+const USER_KEY = 'stickies_user_id';
 
 export default function TabsLayout() {
+  // On app open, silently generate review tasks for any due learning areas
+  useEffect(() => {
+    (async () => {
+      try {
+        const uid = await AsyncStorage.getItem(USER_KEY);
+        if (uid) await generateLearningTasks(uid);
+      } catch (_) {
+        // Silent failure — tasks will be created next time
+      }
+    })();
+  }, []);
+
   return (
     <Tabs
       screenOptions={{

@@ -206,6 +206,48 @@ export const MIGRATE_LEARNING_STICKIES_USER_ID = `
   END $$;
 `;
 
+export interface LearningTaskSettingRecord {
+  id: string; // UUID
+  user_id: string;
+  domain: string; // learning area domain name
+  frequency_days: number; // 0 = disabled, 1 = daily, 3 = every 3 days, 7 = weekly, etc.
+  last_generated_at: Date | null;
+  created_at: Date;
+}
+
+/**
+ * SQL schema for learning_task_settings table
+ */
+export const LEARNING_TASK_SETTINGS_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS learning_task_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    domain TEXT NOT NULL,
+    frequency_days INTEGER NOT NULL DEFAULT 7,
+    last_generated_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, domain)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_lts_user ON learning_task_settings(user_id);
+`;
+
+/**
+ * Migration: allow tasks.transcription_id to be NULL (for non-voice tasks like learning reviews)
+ */
+export const MIGRATE_TASKS_TRANSCRIPTION_ID_NULLABLE = `
+  DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'tasks' AND column_name = 'transcription_id'
+        AND is_nullable = 'NO'
+    ) THEN
+      ALTER TABLE tasks ALTER COLUMN transcription_id DROP NOT NULL;
+    END IF;
+  END $$;
+`;
+
 /**
  * Migration: add domain column and allow nullable ingestion_id for domain-generated stickies
  */
