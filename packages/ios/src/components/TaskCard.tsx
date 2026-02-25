@@ -33,15 +33,43 @@ export function TaskCard({
   onLongPress,
   rotation = 0,
 }: TaskCardProps) {
-  const due = task.dueDate
-    ? new Date(task.dueDate).toLocaleDateString(undefined, {
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+  const due = dueDate
+    ? dueDate.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
       })
     : null;
-  const bg = stickyColorForTaskType(task.type);
+
+  const category: 'past' | 'today' | 'upcoming' | 'none' = (() => {
+    if (!dueDate) return 'upcoming';
+    if (Number.isNaN(dueDate.getTime())) return 'upcoming';
+
+    const toLocalYmd = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const today = new Date();
+    const dueYmd = toLocalYmd(dueDate);
+    const todayYmd = toLocalYmd(today);
+
+    if (dueYmd < todayYmd) return 'past';
+    if (dueYmd === todayYmd) return 'today';
+    return 'upcoming';
+  })();
+
+  const bg =
+    category === 'past'
+      ? StickiesColors.pink
+      : category === 'today'
+      ? StickiesColors.yellow
+      : category === 'upcoming'
+      ? StickiesColors.green
+      : stickyColorForTaskType(task.type);
 
   // Animated checkbox scale
   const checkboxScale = useSharedValue(task.completed ? 1 : 0);
@@ -108,7 +136,18 @@ export function TaskCard({
               {task.description}
             </Text>
           ) : null}
-          {due ? <Text style={styles.due}>{due}</Text> : null}
+          {due ? (
+            <Text
+              style={[
+                styles.due,
+                category === 'past' && styles.duePast,
+                category === 'today' && styles.dueToday,
+                category === 'upcoming' && styles.dueUpcoming,
+              ]}
+            >
+              {due}
+            </Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     </StickyCard>
@@ -162,5 +201,14 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: StickiesColors.inkLight,
     marginTop: Spacing.sm,
+  },
+  duePast: {
+    color: StickiesColors.error,
+  },
+  dueToday: {
+    color: StickiesColors.ink,
+  },
+  dueUpcoming: {
+    color: StickiesColors.inkMuted,
   },
 });

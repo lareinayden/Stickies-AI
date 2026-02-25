@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   ScrollView,
   RefreshControl,
   Modal,
@@ -39,6 +39,68 @@ export default function Tasks() {
     priority: '' as '' | 'low' | 'medium' | 'high',
   });
   const [saving, setSaving] = useState(false);
+
+  const groupedSections = useMemo(() => {
+    if (tasks.length === 0) return [];
+
+    const todayTasks: Task[] = [];
+    const upcomingTasks: Task[] = [];
+    const pastTasks: Task[] = [];
+
+    const toLocalYmd = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const todayYmd = toLocalYmd(new Date());
+
+    for (const t of tasks) {
+      if (!t.dueDate) {
+        upcomingTasks.push(t);
+        continue;
+      }
+      const due = new Date(t.dueDate);
+      if (Number.isNaN(due.getTime())) {
+        upcomingTasks.push(t);
+        continue;
+      }
+      const dueYmd = toLocalYmd(due);
+      if (dueYmd < todayYmd) {
+        pastTasks.push(t);
+      } else if (dueYmd === todayYmd) {
+        todayTasks.push(t);
+      } else {
+        upcomingTasks.push(t);
+      }
+    }
+
+    const sections: Array<{ key: string; title: string; data: Task[] }> = [];
+    const sortIncompleteFirst = (a: Task, b: Task) =>
+      a.completed === b.completed ? 0 : a.completed ? 1 : -1;
+    if (todayTasks.length) {
+      sections.push({
+        key: 'today',
+        title: 'Today',
+        data: [...todayTasks].sort(sortIncompleteFirst),
+      });
+    }
+    if (upcomingTasks.length) {
+      sections.push({
+        key: 'upcoming',
+        title: 'Upcoming',
+        data: [...upcomingTasks].sort(sortIncompleteFirst),
+      });
+    }
+    if (pastTasks.length) {
+      sections.push({
+        key: 'past',
+        title: 'Past',
+        data: [...pastTasks].sort(sortIncompleteFirst),
+      });
+    }
+    return sections;
+  }, [tasks]);
 
   const load = useCallback(async () => {
     const uid = await AsyncStorage.getItem(USER_KEY);
@@ -218,9 +280,14 @@ export default function Tasks() {
 
   return (
     <>
-      <FlatList
-        data={tasks}
-        keyExtractor={(t) => t.id}
+      <SectionList
+        sections={groupedSections}
+        keyExtractor={(item) => item.id}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeaderContainer}>
+            <Text style={styles.sectionHeaderText}>{section.title}</Text>
+          </View>
+        )}
         renderItem={({ item }) => (
           <Swipeable
             rightActions={[
@@ -371,6 +438,17 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
     backgroundColor: StickiesColors.desk,
+  },
+  sectionHeaderContainer: {
+    paddingVertical: 6,
+  },
+  sectionHeaderText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: StickiesColors.inkMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   centered: {
     flex: 1,

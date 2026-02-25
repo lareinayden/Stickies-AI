@@ -69,6 +69,13 @@ export async function POST(request: NextRequest) {
           ) {
             parsedDate = new Date(tomorrow);
             parsedDate.setHours(hours, minutes, seconds, 0);
+          } else if (
+            textLower.includes('today') &&
+            !textLower.includes('tomorrow') &&
+            daysFromToday !== 0
+          ) {
+            parsedDate = new Date(today);
+            parsedDate.setHours(hours, minutes, seconds, 0);
           } else {
             parsedDate = summarizer.parseDueDate(task.dueDate);
           }
