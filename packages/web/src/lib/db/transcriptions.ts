@@ -252,8 +252,14 @@ function mapRowToTranscription(row: Record<string, unknown>): TranscriptionRecor
     ingestion_id: row.ingestion_id as string,
     status: row.status as TranscriptionRecord['status'],
     original_filename: row.original_filename as string | null,
-    file_size: row.file_size as number | null,
-    duration_seconds: row.duration_seconds as number | null,
+    file_size:
+      row.file_size !== null && row.file_size !== undefined
+        ? Number(row.file_size)
+        : null,
+    duration_seconds:
+      row.duration_seconds !== null && row.duration_seconds !== undefined
+        ? Number(row.duration_seconds)
+        : null,
     audio_format: row.audio_format as string | null,
     language: row.language as string | null,
     created_at: row.created_at as Date,

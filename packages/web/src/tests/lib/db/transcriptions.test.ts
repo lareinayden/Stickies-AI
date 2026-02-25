@@ -13,11 +13,13 @@ import {
   completeTranscription,
   failTranscription,
   deleteTranscription,
-} from '../../../lib/db/transcriptions';
-import { initializeDatabase, closeDbPool } from '../../../lib/db/client';
-import { generateIngestionId } from '../../../lib/utils/ingestion-id';
+} from '@/lib/db/transcriptions';
+import { initializeDatabase, closeDbPool } from '@/lib/db/client';
+import { generateIngestionId } from '@/lib/utils/ingestion-id';
 
 describe('Transcription Database Operations', () => {
+  const userId = 'test-user-transcriptions';
+
   beforeAll(async () => {
     // Initialize database schema before tests
     await initializeDatabase();
@@ -35,7 +37,12 @@ describe('Transcription Database Operations', () => {
 
   it('should create a new transcription record', async () => {
     const ingestionId = generateIngestionId();
-    const transcription = await createTranscription(ingestionId, 'test.wav', 1024);
+    const transcription = await createTranscription(
+      userId,
+      ingestionId,
+      'test.wav',
+      1024
+    );
 
     expect(transcription).toBeDefined();
     expect(transcription.ingestion_id).toBe(ingestionId);
@@ -46,31 +53,41 @@ describe('Transcription Database Operations', () => {
 
   it('should retrieve transcription by ingestion ID', async () => {
     const ingestionId = generateIngestionId();
-    await createTranscription(ingestionId, 'test.wav');
+    await createTranscription(userId, ingestionId, 'test.wav');
 
-    const transcription = await getTranscriptionByIngestionId(ingestionId);
+    const transcription = await getTranscriptionByIngestionId(
+      userId,
+      ingestionId
+    );
 
     expect(transcription).toBeDefined();
     expect(transcription?.ingestion_id).toBe(ingestionId);
   });
 
   it('should return null for non-existent ingestion ID', async () => {
-    const transcription = await getTranscriptionByIngestionId('non-existent-id');
+    const transcription = await getTranscriptionByIngestionId(
+      userId,
+      'non-existent-id'
+    );
     expect(transcription).toBeNull();
   });
 
   it('should update transcription status', async () => {
     const ingestionId = generateIngestionId();
-    await createTranscription(ingestionId);
+    await createTranscription(userId, ingestionId);
 
-    const updated = await updateTranscriptionStatus(ingestionId, 'processing');
+    const updated = await updateTranscriptionStatus(
+      userId,
+      ingestionId,
+      'processing'
+    );
 
     expect(updated.status).toBe('processing');
   });
 
   it('should complete transcription with transcript data', async () => {
     const ingestionId = generateIngestionId();
-    await createTranscription(ingestionId);
+    await createTranscription(userId, ingestionId);
 
     const segments = [
       { start: 0, end: 2.5, text: 'Hello world' },
@@ -78,6 +95,7 @@ describe('Transcription Database Operations', () => {
     ];
 
     const completed = await completeTranscription(
+      userId,
       ingestionId,
       'Hello world. This is a test.',
       segments,
@@ -93,9 +111,13 @@ describe('Transcription Database Operations', () => {
 
   it('should mark transcription as failed', async () => {
     const ingestionId = generateIngestionId();
-    await createTranscription(ingestionId);
+    await createTranscription(userId, ingestionId);
 
-    const failed = await failTranscription(ingestionId, 'Processing error');
+    const failed = await failTranscription(
+      userId,
+      ingestionId,
+      'Processing error'
+    );
 
     expect(failed.status).toBe('failed');
     expect(failed.error_message).toBe('Processing error');
@@ -103,12 +125,15 @@ describe('Transcription Database Operations', () => {
 
   it('should delete transcription', async () => {
     const ingestionId = generateIngestionId();
-    await createTranscription(ingestionId);
+    await createTranscription(userId, ingestionId);
 
-    const deleted = await deleteTranscription(ingestionId);
+    const deleted = await deleteTranscription(userId, ingestionId);
     expect(deleted).toBe(true);
 
-    const transcription = await getTranscriptionByIngestionId(ingestionId);
+    const transcription = await getTranscriptionByIngestionId(
+      userId,
+      ingestionId
+    );
     expect(transcription).toBeNull();
   });
 });

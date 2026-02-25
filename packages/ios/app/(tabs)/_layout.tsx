@@ -102,6 +102,21 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="rewards"
+        options={{
+          title: 'Rewards',
+          tabBarLabel: 'Rewards',
+          tabBarIcon: ({ color, focused }) => (
+            <SymbolView
+              name={focused ? 'sparkles' : 'sparkles'}
+              tintColor={color}
+              size={24}
+              type="hierarchical"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="account"
         options={{
           title: 'Account',

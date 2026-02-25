@@ -270,3 +270,131 @@ export const MIGRATE_LEARNING_STICKIES_DOMAIN = `
     END IF;
   END $$;
 `;
+
+/**
+ * Rewards & reinforcement system schema
+ */
+
+export type RewardStyle = 'minimal' | 'encouraging' | 'achievement' | 'playful';
+
+export interface UserPreferencesRecord {
+  user_id: string;
+  reward_style: RewardStyle;
+  timezone: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface EventRecord {
+  id: string; // UUID
+  user_id: string;
+  event_type: string;
+  occurred_at: Date;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface DailyStatsRecord {
+  id: string; // UUID
+  user_id: string;
+  date: Date; // Date-only (UTC-normalized)
+  effort_score: number;
+  tasks_completed: number;
+  reviews_completed: number;
+  streak_maintained: boolean;
+  created_at: Date;
+}
+
+export interface StreakRecord {
+  id: string; // UUID
+  user_id: string;
+  current_streak: number;
+  longest_streak: number;
+  grace_used: boolean;
+  grace_period_start: Date | null;
+  last_active_date: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export type UnlockType = 'theme' | 'font' | 'analytics' | 'org_feature';
+
+export interface UnlockRecord {
+  id: string; // UUID
+  user_id: string;
+  unlock_type: UnlockType;
+  is_enabled: boolean;
+  earned_at: Date;
+  metadata: Record<string, unknown> | null;
+}
+
+export const USER_PREFERENCES_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS public.user_preferences (
+    user_id VARCHAR(255) PRIMARY KEY,
+    reward_style VARCHAR(50) NOT NULL DEFAULT 'encouraging',
+    timezone VARCHAR(100) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+`;
+
+export const EVENTS_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS public.events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata JSONB
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
+  CREATE INDEX IF NOT EXISTS idx_events_user_date ON events(user_id, occurred_at);
+  CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
+`;
+
+export const DAILY_STATS_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS public.daily_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    date DATE NOT NULL,
+    effort_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tasks_completed INTEGER NOT NULL DEFAULT 0,
+    reviews_completed INTEGER NOT NULL DEFAULT 0,
+    streak_maintained BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, date)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_daily_stats_user ON daily_stats(user_id);
+  CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date);
+`;
+
+export const STREAKS_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS public.streaks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL UNIQUE,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    grace_used BOOLEAN NOT NULL DEFAULT FALSE,
+    grace_period_start DATE,
+    last_active_date DATE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_streaks_user ON streaks(user_id);
+`;
+
+export const UNLOCKS_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS public.unlocks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    unlock_type VARCHAR(50) NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    earned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata JSONB,
+    UNIQUE(user_id, unlock_type)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_unlocks_user ON unlocks(user_id);
+  CREATE INDEX IF NOT EXISTS idx_unlocks_type ON unlocks(unlock_type);
+`;

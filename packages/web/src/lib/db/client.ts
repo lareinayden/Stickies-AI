@@ -13,6 +13,11 @@ import {
   MIGRATE_TASKS_TRANSCRIPTION_ID_NULLABLE,
   MIGRATE_LEARNING_STICKIES_USER_ID,
   MIGRATE_LEARNING_STICKIES_DOMAIN,
+  USER_PREFERENCES_TABLE_SCHEMA,
+  EVENTS_TABLE_SCHEMA,
+  DAILY_STATS_TABLE_SCHEMA,
+  STREAKS_TABLE_SCHEMA,
+  UNLOCKS_TABLE_SCHEMA,
 } from './schema';
 
 let pool: Pool | null = null;
@@ -61,6 +66,11 @@ export async function initializeDatabase(): Promise<void> {
     await db.query(TASKS_TABLE_SCHEMA);
     await db.query(LEARNING_STICKIES_TABLE_SCHEMA);
     await db.query(LEARNING_TASK_SETTINGS_TABLE_SCHEMA);
+    await db.query(USER_PREFERENCES_TABLE_SCHEMA);
+    await db.query(EVENTS_TABLE_SCHEMA);
+    await db.query(DAILY_STATS_TABLE_SCHEMA);
+    await db.query(STREAKS_TABLE_SCHEMA);
+    await db.query(UNLOCKS_TABLE_SCHEMA);
 
     // Run migrations to add user_id columns if they don't exist
     await db.query(MIGRATE_TRANSCRIPTIONS_USER_ID);

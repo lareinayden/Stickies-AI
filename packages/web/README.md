@@ -6,6 +6,7 @@ Next.js web application for Stickies AI, including the voice input pipeline back
 
 1. Install dependencies:
 ```bash
+cd packages/web
 npm install
 ```
 
@@ -17,6 +18,7 @@ cp .env.example .env
 
 3. Initialize the database:
 ```bash
+npm run db:init
 # Make sure PostgreSQL is running
 # The schema will be automatically created on first connection
 ```

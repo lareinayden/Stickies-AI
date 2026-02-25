@@ -27,6 +27,7 @@ import {
   getLearningTaskSettings,
   upsertLearningTaskSetting,
   createImmediateLearningTask,
+  trackStickyReview,
 } from '../../src/api/client';
 import { StickiesColors, colorForArea, Typography, Spacing } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
@@ -62,6 +63,16 @@ export default function LearningStickiesScreen() {
     const uid = await AsyncStorage.getItem(USER_KEY);
     setUserId(uid);
     if (!uid) return;
+
+    // Load per-sticky progress state once we know the user.
+    try {
+      const raw = await AsyncStorage.getItem(`${PROGRESS_KEY_PREFIX}${uid}`);
+      const parsed = raw ? (JSON.parse(raw) as StickyProgressMap) : {};
+      setStatusById(parsed ?? {});
+    } catch (_) {
+      setStatusById({});
+    }
+
     setFetchError(null);
     setLoading(true);
     try {
@@ -80,6 +91,31 @@ export default function LearningStickiesScreen() {
       setLoading(false);
     }
   }, []);
+
+  const setStickyStatus = useCallback(
+    async (sticky: LearningSticky, status: StickyReviewStatus) => {
+      if (!userId) return;
+      hapticFeedback.tap();
+
+      setStatusById((prev) => {
+        const next: StickyProgressMap = { ...prev, [sticky.id]: status };
+        // Persist best-effort (don't block UI)
+        void AsyncStorage.setItem(
+          `${PROGRESS_KEY_PREFIX}${userId}`,
+          JSON.stringify(next)
+        ).catch(() => undefined);
+        return next;
+      });
+
+      // Also emit server-side event so rewards pipeline can count reviews.
+      void trackStickyReview(userId, {
+        stickyId: sticky.id,
+        domain: selectedDomain ?? sticky.domain ?? null,
+        status,
+      }).catch(() => undefined);
+    },
+    [userId, selectedDomain]
+  );
 
   const loadAreaStickies = useCallback(async (domain: string) => {
     if (!userId) return;
@@ -338,10 +374,7 @@ export default function LearningStickiesScreen() {
                           <View style={styles.statusRow}>
                             <TouchableOpacity
                               onPress={() =>
-                                setStatusById((prev) => ({
-                                  ...prev,
-                                  [item.id]: 'needs_review',
-                                }))
+                                setStickyStatus(item, 'needs_review')
                               }
                               style={[
                                 styles.statusButton,
@@ -361,10 +394,7 @@ export default function LearningStickiesScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() =>
-                                setStatusById((prev) => ({
-                                  ...prev,
-                                  [item.id]: 'learned',
-                                }))
+                                setStickyStatus(item, 'learned')
                               }
                               style={[
                                 styles.statusButton,

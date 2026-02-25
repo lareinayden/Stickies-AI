@@ -17,6 +17,131 @@ function headers(userId: string, contentType?: string): Record<string, string> {
   return h;
 }
 
+export async function trackEvent(
+  userId: string,
+  eventType: string,
+  metadata?: Record<string, unknown> | null
+): Promise<{ id: string; eventType: string; occurredAt: string }> {
+  const res = await fetch(`${BASE_URL}/api/events`, {
+    method: 'POST',
+    headers: headers(userId, 'application/json'),
+    body: JSON.stringify({
+      event_type: eventType,
+      metadata: metadata ?? null,
+    }),
+  });
+
+  const json = (await res.json()) as {
+    id?: string;
+    eventType?: string;
+    occurredAt?: string;
+    error?: string;
+  };
+
+  if (!res.ok) throw new Error(json.error || `Track event failed: ${res.status}`);
+  if (!json.id || !json.eventType || !json.occurredAt) {
+    throw new Error('Invalid track event response');
+  }
+
+  return { id: json.id, eventType: json.eventType, occurredAt: json.occurredAt };
+}
+
+export async function trackStickyReview(
+  userId: string,
+  payload: { stickyId: string; domain?: string | null; status: 'needs_review' | 'learned' }
+): Promise<void> {
+  await trackEvent(userId, 'sticky_reviewed', {
+    stickyId: payload.stickyId,
+    domain: payload.domain ?? null,
+    status: payload.status,
+  });
+}
+
+export async function getRewardsDailyStats(
+  userId: string,
+  days = 30
+): Promise<{
+  days: number;
+  stats: Array<{ date: string; effortScore: number; tasksCompleted: number; reviewsCompleted: number }>;
+}> {
+  const res = await fetch(`${BASE_URL}/api/rewards/daily-stats?days=${encodeURIComponent(String(days))}`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as {
+    days?: number;
+    stats?: Array<{ date: string; effortScore: number; tasksCompleted: number; reviewsCompleted: number }>;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Get rewards daily-stats failed: ${res.status}`);
+  return { days: json.days ?? days, stats: json.stats ?? [] };
+}
+
+export async function getRewardsWeeklyReport(
+  userId: string
+): Promise<{
+  startDate: string;
+  endDate: string;
+  days: number;
+  activeDays: number;
+  totalTasks: number;
+  totalReviews: number;
+  averageEffort: number;
+  bestDay: { date: string; effortScore: number } | null;
+}> {
+  const res = await fetch(`${BASE_URL}/api/rewards/weekly-report`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as {
+    startDate?: string;
+    endDate?: string;
+    days?: number;
+    activeDays?: number;
+    totalTasks?: number;
+    totalReviews?: number;
+    averageEffort?: number;
+    bestDay?: { date: string; effortScore: number } | null;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Get rewards weekly-report failed: ${res.status}`);
+  return {
+    startDate: json.startDate ?? '',
+    endDate: json.endDate ?? '',
+    days: json.days ?? 7,
+    activeDays: json.activeDays ?? 0,
+    totalTasks: json.totalTasks ?? 0,
+    totalReviews: json.totalReviews ?? 0,
+    averageEffort: json.averageEffort ?? 0,
+    bestDay: json.bestDay ?? null,
+  };
+}
+
+export async function getRewardsHighlights(
+  userId: string
+): Promise<{ highlights: Array<Record<string, unknown>> }> {
+  const res = await fetch(`${BASE_URL}/api/rewards/highlights`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as { highlights?: Array<Record<string, unknown>>; error?: string };
+  if (!res.ok) throw new Error(json.error || `Get rewards highlights failed: ${res.status}`);
+  return { highlights: json.highlights ?? [] };
+}
+
+export async function getRewardsUnlocks(
+  userId: string
+): Promise<{
+  unlocks: Array<{ id: string; type: string; isEnabled: boolean; earnedAt: string; metadata: unknown }>;
+}> {
+  const res = await fetch(`${BASE_URL}/api/rewards/unlocks`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as {
+    unlocks?: Array<{ id: string; type: string; isEnabled: boolean; earnedAt: string; metadata: unknown }>;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Get rewards unlocks failed: ${res.status}`);
+  return { unlocks: json.unlocks ?? [] };
+}
+
 export async function uploadVoice(
   userId: string,
   uri: string,

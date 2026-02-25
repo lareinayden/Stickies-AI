@@ -16,6 +16,7 @@ import {
   updateTaskCompletion,
   deleteTask,
 } from '@/lib/db/tasks';
+import { createTaskCompletedEvent } from '@/lib/db/events';
 import { requireAuth } from '@/lib/auth/middleware';
 
 export const runtime = 'nodejs';
@@ -106,6 +107,18 @@ export async function PATCH(
     // Handle completion status update
     if (body.completed !== undefined) {
       const task = await updateTaskCompletion(userId, taskId, body.completed);
+
+      if (body.completed) {
+        void createTaskCompletedEvent(userId, {
+          id: task.id,
+          title: task.title,
+          type: task.type,
+          ingestionId: task.ingestion_id,
+          completedAt: task.completed_at,
+        }).catch((err) => {
+          console.error('Failed to record task_completed event:', err);
+        });
+      }
       return NextResponse.json({
         id: task.id,
         title: task.title,
