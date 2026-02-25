@@ -19,6 +19,7 @@ import { Swipeable } from '../../src/components/Swipeable';
 import { getTasks, updateTask, patchTask, deleteTask } from '../../src/api/client';
 import { StickiesColors } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
+import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { Task } from '../../src/types';
 
 const USER_KEY = 'stickies_user_id';
@@ -79,9 +80,14 @@ export default function Tasks() {
         await updateTask(userId, taskId, { completed });
         setTasks((prev) =>
           prev.map((t) =>
-            t.id === taskId ? { ...t, completed, completedAt: completed ? new Date().toISOString() : null } : t
+            t.id === taskId
+              ? { ...t, completed, completedAt: completed ? new Date().toISOString() : null }
+              : t
           )
         );
+        if (completed) {
+          triggerRewardsRefresh();
+        }
       } catch (_) {}
     },
     [userId]

@@ -31,6 +31,7 @@ import {
 } from '../../src/api/client';
 import { StickiesColors, colorForArea, Typography, Spacing } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
+import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { LearningSticky } from '../../src/types';
 
 const USER_KEY = 'stickies_user_id';
@@ -113,6 +114,7 @@ export default function LearningStickiesScreen() {
         domain: selectedDomain ?? sticky.domain ?? null,
         status,
       }).catch(() => undefined);
+      triggerRewardsRefresh();
     },
     [userId, selectedDomain]
   );

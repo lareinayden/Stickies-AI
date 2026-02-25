@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import {
   getRewardsHighlights,
   getRewardsUnlocks,
 } from '../../src/api/client';
+import { subscribeRewardsRefresh } from '../../src/utils/rewards-refresh';
 import { StickiesColors, Typography, Spacing } from '../../src/theme/stickies';
 
 const USER_KEY = 'stickies_user_id';
@@ -98,6 +100,19 @@ export default function RewardsScreen() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  useEffect(() => {
+    const unsubscribe = subscribeRewardsRefresh(() => {
+      load();
+    });
+    return unsubscribe;
   }, [load]);
 
   const onRefresh = useCallback(async () => {
