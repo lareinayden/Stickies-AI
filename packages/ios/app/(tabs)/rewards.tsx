@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StickyCard } from '../../src/components/StickyCard';
 import {
   getRewardsDailyStats,
   getRewardsWeeklyReport,
@@ -17,7 +16,23 @@ import {
   getRewardsUnlocks,
 } from '../../src/api/client';
 import { subscribeRewardsRefresh } from '../../src/utils/rewards-refresh';
-import { StickiesColors, Typography, Spacing } from '../../src/theme/stickies';
+import { StickiesColors, TypographyRounded, Spacing } from '../../src/theme/stickies';
+
+const CARD_RADIUS = 16;
+const CARD_BORDER = 3;
+const cardStyle = (bg: string, borderColor: string) => ({
+  backgroundColor: bg,
+  borderRadius: CARD_RADIUS,
+  borderBottomWidth: CARD_BORDER,
+  borderBottomColor: borderColor,
+  padding: 16,
+  minHeight: 48,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 4,
+  elevation: 2,
+});
 
 const USER_KEY = 'stickies_user_id';
 
@@ -131,10 +146,12 @@ export default function RewardsScreen() {
   if (!userId) {
     return (
       <View style={styles.container}>
-        <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.card}>
-          <Text style={styles.title}>Rewards</Text>
-          <Text style={styles.hint}>Log in to see your progress.</Text>
-        </StickyCard>
+        <View style={styles.content}>
+          <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardToday, StickiesColors.taskCardTodayBorder)]}>
+            <Text style={styles.title}>Rewards</Text>
+            <Text style={styles.hint}>Log in to see your progress.</Text>
+          </View>
+        </View>
       </View>
     );
   }
@@ -147,21 +164,14 @@ export default function RewardsScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={StickiesColors.inkMuted} />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Rewards</Text>
-        <Text style={styles.hint}>
-          Proof of effort over streak pressure. Reviews and tasks both count.
-        </Text>
-      </View>
-
       {error ? (
-        <StickyCard backgroundColor={StickiesColors.pink} softShadow style={styles.card}>
+        <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardPast, StickiesColors.taskCardPastBorder)]}>
           <Text style={styles.cardTitle}>Could not load</Text>
           <Text style={styles.cardBody}>{error}</Text>
-        </StickyCard>
+        </View>
       ) : null}
 
-      <StickyCard backgroundColor={StickiesColors.gray} softShadow style={styles.card}>
+      <View style={[styles.cardWrap, cardStyle(StickiesColors.gray, StickiesColors.grayDark)]}>
         <Text style={styles.cardTitle}>Effort heatmap (last 30 days)</Text>
         {loading && daily.length === 0 ? (
           <View style={styles.loadingRow}>
@@ -194,9 +204,9 @@ export default function RewardsScreen() {
           </View>
           <Text style={styles.legendText}>More</Text>
         </View>
-      </StickyCard>
+      </View>
 
-      <StickyCard backgroundColor={StickiesColors.blue} softShadow style={styles.card}>
+      <View style={[styles.cardWrap, cardStyle(StickiesColors.blue, StickiesColors.blueBorder)]}>
         <Text style={styles.cardTitle}>Weekly recap</Text>
         {!weekly ? (
           <Text style={styles.cardBody}>No data yet for this week.</Text>
@@ -223,9 +233,9 @@ export default function RewardsScreen() {
             </View>
           </View>
         )}
-      </StickyCard>
+      </View>
 
-      <StickyCard backgroundColor={StickiesColors.purple} softShadow style={styles.card}>
+      <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardPast, StickiesColors.taskCardPastBorder)]}>
         <Text style={styles.cardTitle}>Highlights</Text>
         {highlights.length === 0 ? (
           <Text style={styles.cardBody}>Highlights will show up once you have more activity.</Text>
@@ -241,9 +251,9 @@ export default function RewardsScreen() {
             ))}
           </View>
         )}
-      </StickyCard>
+      </View>
 
-      <StickyCard backgroundColor={StickiesColors.green} softShadow style={styles.card}>
+      <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardUpcoming, StickiesColors.taskCardUpcomingBorder)]}>
         <Text style={styles.cardTitle}>Unlocks</Text>
         {unlocks.length === 0 ? (
           <Text style={styles.cardBody}>
@@ -261,7 +271,7 @@ export default function RewardsScreen() {
             ))}
           </View>
         )}
-      </StickyCard>
+      </View>
     </ScrollView>
   );
 }
@@ -272,32 +282,29 @@ const styles = StyleSheet.create({
     backgroundColor: StickiesColors.desk,
   },
   content: {
-    padding: 20,
+    padding: 18,
     gap: 14,
     paddingBottom: 28,
   },
-  header: {
-    paddingHorizontal: 4,
+  cardWrap: {
+    marginBottom: 0,
   },
   title: {
-    ...Typography.title2,
+    ...TypographyRounded.sectionHeader,
     color: StickiesColors.ink,
   },
   hint: {
     marginTop: 6,
-    ...Typography.subheadline,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
-  card: {
-    padding: 16,
-  },
   cardTitle: {
-    ...Typography.title3,
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
     marginBottom: 10,
   },
   cardBody: {
-    ...Typography.subheadline,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   loadingRow: {
@@ -307,7 +314,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   loadingText: {
-    ...Typography.subheadline,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   heatmapGrid: {
@@ -317,8 +324,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   heatmapCell: {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
     borderRadius: 4,
     borderWidth: 1,
     borderColor: 'rgba(28,25,23,0.08)',
@@ -330,7 +337,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   legendText: {
-    ...Typography.caption,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkLight,
   },
   legendSwatches: {
@@ -339,7 +346,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legendSwatch: {
-    width: 18,
+    width: 16,
     height: 10,
     borderRadius: 3,
     borderWidth: 1,
@@ -353,25 +360,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(28,25,23,0.06)',
     borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(28,25,23,0.06)',
+    padding: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(28,25,23,0.08)',
   },
   weeklyLabel: {
-    ...Typography.caption,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkLight,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   weeklyValue: {
     marginTop: 6,
-    fontSize: 20,
-    fontWeight: '700',
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
   },
   weeklyMeta: {
     marginTop: 2,
-    ...Typography.caption,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   highlightList: {
@@ -380,17 +386,17 @@ const styles = StyleSheet.create({
   highlightItem: {
     backgroundColor: 'rgba(28,25,23,0.06)',
     borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(28,25,23,0.06)',
+    padding: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(28,25,23,0.08)',
   },
   highlightTitle: {
-    ...Typography.bodyEmphasized,
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
   },
   highlightBody: {
     marginTop: 4,
-    ...Typography.subheadline,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   unlockList: {
@@ -399,17 +405,17 @@ const styles = StyleSheet.create({
   unlockItem: {
     backgroundColor: 'rgba(28,25,23,0.06)',
     borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(28,25,23,0.06)',
+    padding: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(28,25,23,0.08)',
   },
   unlockType: {
-    ...Typography.bodyEmphasized,
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
   },
   unlockMeta: {
     marginTop: 4,
-    ...Typography.caption,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
 });

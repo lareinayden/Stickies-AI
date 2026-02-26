@@ -12,6 +12,7 @@ export const StickiesColors = {
   pinkDark: '#fbcfe8',
   blue: '#dbeafe',
   blueDark: '#bfdbfe',
+  blueBorder: '#60a5fa',
   green: '#dcfce7',
   greenDark: '#bbf7d0',
   orange: '#ffedd5',
@@ -33,6 +34,20 @@ export const StickiesColors = {
   // Accents (recording uses pink + ink, no bright red)
   success: '#16a34a',
   error: '#b91c1c',
+
+  // Task card 3D / stepping-stone
+  taskCardToday: '#fef9c3',
+  taskCardTodayBorder: '#e5d900',
+  taskCardUpcoming: '#dcfce7',
+  taskCardUpcomingBorder: '#86efac',
+  taskCardPast: '#e9d5ff',
+  taskCardPastBorder: '#c084fc',
+  steppingStoneDefault: '#e2e8f0',
+  steppingStoneDefaultBorder: '#cbd5e1',
+  steppingStoneCompleted: '#facc15',
+  steppingStoneCompletedBorder: '#eab308',
+  steppingStoneCompletedCheck: '#1c1917',
+  masteredSheen: 'rgba(255,255,255,0.35)',
 } as const;
 
 /**
@@ -113,6 +128,36 @@ export const Typography = {
 } as const;
 
 /**
+ * Chunky rounded typography for Tasks / gamified UI (compact)
+ */
+export const TypographyRounded = {
+  sectionHeader: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    lineHeight: 28,
+    letterSpacing: 0.2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    lineHeight: 22,
+    letterSpacing: 0.15,
+  },
+  cardTitleCompleted: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+    letterSpacing: 0.15,
+  },
+  cardMeta: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    lineHeight: 18,
+    letterSpacing: 0.1,
+  },
+} as const;
+
+/**
  * Spacing system based on 4px grid
  * Promotes consistent whitespace and minimal cognitive load
  */
@@ -157,14 +202,17 @@ export function stickyColorForTaskType(
   }
 }
 
-/** Pastel colors for learning areas (same domain = same color) */
+/** Learning area colors: yellow, purple, blue (no green) */
 const AREA_COLORS = [
-  StickiesColors.yellow,
-  StickiesColors.pink,
+  StickiesColors.taskCardToday,
+  StickiesColors.taskCardPast,
   StickiesColors.blue,
-  StickiesColors.green,
-  StickiesColors.orange,
-  StickiesColors.purple,
+] as const;
+
+const AREA_BORDER_COLORS = [
+  StickiesColors.taskCardTodayBorder,
+  StickiesColors.taskCardPastBorder,
+  StickiesColors.blueBorder,
 ] as const;
 
 export function colorForArea(domain: string): string {
@@ -173,4 +221,21 @@ export function colorForArea(domain: string): string {
     n = (n * 31 + domain.charCodeAt(i)) >>> 0;
   }
   return AREA_COLORS[n % AREA_COLORS.length];
+}
+
+export function borderColorForArea(domain: string): string {
+  let n = 0;
+  for (let i = 0; i < domain.length; i++) {
+    n = (n * 31 + domain.charCodeAt(i)) >>> 0;
+  }
+  return AREA_BORDER_COLORS[n % AREA_BORDER_COLORS.length];
+}
+
+/** Color by index so areas cycle: 0=yellow, 1=purple, 2=blue */
+export function colorForAreaByIndex(index: number): string {
+  return AREA_COLORS[index % AREA_COLORS.length];
+}
+
+export function borderColorForAreaByIndex(index: number): string {
+  return AREA_BORDER_COLORS[index % AREA_BORDER_COLORS.length];
 }

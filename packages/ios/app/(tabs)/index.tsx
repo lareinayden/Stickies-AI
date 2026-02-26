@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { FeedCard, feedCardHeight } from '../../src/components/FeedCard';
 import { getTasks, getLearningStickies } from '../../src/api/client';
-import { StickiesColors, Typography, Spacing } from '../../src/theme/stickies';
+import { StickiesColors, TypographyRounded, Spacing } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
 import type { Task } from '../../src/types';
 import type { LearningSticky } from '../../src/types';
@@ -227,7 +227,7 @@ export default function Home() {
           {Platform.OS === 'ios' ? (
             <SymbolView
               name="plus"
-              size={28}
+              size={24}
               tintColor={StickiesColors.ink}
               weight="medium"
               fallback={<Text style={styles.fabPlus}>+</Text>}
@@ -247,62 +247,63 @@ const styles = StyleSheet.create({
     backgroundColor: StickiesColors.desk,
   },
   cardLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: Spacing.sm,
   },
   cardTitle: {
-    ...Typography.title2,
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
     marginBottom: Spacing.sm,
   },
   cardBody: {
-    ...Typography.callout,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
-    lineHeight: 24,
+    lineHeight: 20,
   },
   cardMeta: {
-    ...Typography.footnote,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkLight,
     marginTop: Spacing.sm,
   },
   emptyTitle: {
-    ...Typography.title1,
+    ...TypographyRounded.sectionHeader,
     color: StickiesColors.ink,
     marginBottom: Spacing.md,
     textAlign: 'center',
   },
   emptySubtitle: {
-    ...Typography.callout,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
-    lineHeight: 24,
+    lineHeight: 20,
     textAlign: 'center',
   },
   fab: {
     position: 'absolute',
     alignSelf: 'center',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   fabInner: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   fabPlus: {
-    fontSize: 32,
-    fontWeight: '300',
+    fontSize: 28,
+    fontWeight: '700',
     color: StickiesColors.ink,
   },
 });

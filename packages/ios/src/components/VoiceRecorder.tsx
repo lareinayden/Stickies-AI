@@ -13,10 +13,24 @@ import {
   Animated,
 } from 'react-native';
 import { SymbolView } from 'expo-symbols';
-import { StickyCard } from './StickyCard';
 import { SoundWave } from './SoundWave';
-import { StickiesColors, Typography, Spacing } from '../theme/stickies';
+import { StickiesColors, TypographyRounded, Spacing } from '../theme/stickies';
 import { hapticFeedback } from '../utils/haptics';
+
+const CARD_RADIUS = 16;
+const CARD_BORDER = 3;
+const cardStyle = (bg: string, borderColor: string) => ({
+  backgroundColor: bg,
+  borderRadius: CARD_RADIUS,
+  borderBottomWidth: CARD_BORDER,
+  borderBottomColor: borderColor,
+  padding: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 4,
+  elevation: 2,
+});
 
 type Phase =
   | 'idle'
@@ -46,7 +60,7 @@ interface VoiceRecorderProps {
   disabled?: boolean;
 }
 
-const ROUND_BUTTON_SIZE = 96;
+const ROUND_BUTTON_SIZE = 80;
 
 export function VoiceRecorder({
   phase,
@@ -90,7 +104,7 @@ export function VoiceRecorder({
 
   if (isRecording) {
     return (
-      <StickyCard backgroundColor={StickiesColors.orange} softShadow>
+      <View style={[cardStyle(StickiesColors.orange, StickiesColors.orangeDark)]}>
         <View style={styles.soundWaveWrap}>
           <SoundWave meteringDb={meteringDb} />
         </View>
@@ -125,13 +139,13 @@ export function VoiceRecorder({
           </TouchableOpacity>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-      </StickyCard>
+      </View>
     );
   }
 
   if (phase === 'done' || phase === 'error') {
     return (
-      <StickyCard backgroundColor={StickiesColors.green} softShadow>
+      <View style={[cardStyle(StickiesColors.green, StickiesColors.greenDark)]}>
         <TouchableOpacity
           style={[styles.stickyBtn, styles.primaryBtn]}
           onPress={onReset}
@@ -140,13 +154,13 @@ export function VoiceRecorder({
           <Text style={styles.primaryBtnLabel}>Record again</Text>
         </TouchableOpacity>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-      </StickyCard>
+      </View>
     );
   }
 
   if (busy) {
     return (
-      <StickyCard backgroundColor={StickiesColors.blue} softShadow>
+      <View style={[cardStyle(StickiesColors.blue, StickiesColors.blueBorder)]}>
         <View style={[styles.busyRow, styles.disabled]}>
           <ActivityIndicator color={StickiesColors.ink} size="small" />
           <Text style={[styles.primaryBtnLabel, { marginLeft: 10 }]}>
@@ -154,7 +168,7 @@ export function VoiceRecorder({
           </Text>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-      </StickyCard>
+      </View>
     );
   }
 
@@ -172,7 +186,7 @@ export function VoiceRecorder({
         <SymbolView
           name="mic.fill"
           tintColor={StickiesColors.ink}
-          size={44}
+          size={36}
           weight="medium"
           type="hierarchical"
         />
@@ -191,43 +205,46 @@ const styles = StyleSheet.create({
     height: ROUND_BUTTON_SIZE,
     borderRadius: ROUND_BUTTON_SIZE / 2,
     backgroundColor: StickiesColors.orange,
+    borderBottomWidth: CARD_BORDER,
+    borderBottomColor: StickiesColors.orangeDark,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   stickyBtn: {
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md + 2,
     borderRadius: 12,
+    borderBottomWidth: 2,
     minWidth: 140,
     alignItems: 'center',
   },
   primaryBtn: {
     backgroundColor: 'rgba(28,25,23,0.08)',
+    borderBottomColor: 'rgba(28,25,23,0.12)',
   },
   primaryBtnLabel: {
-    ...Typography.body,
-    fontWeight: '600',
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
   },
   stopBtn: {
     backgroundColor: StickiesColors.ink,
+    borderBottomColor: '#1c1917',
   },
   stopBtnLabel: {
-    ...Typography.body,
-    fontWeight: '600',
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.yellow,
   },
   cancelBtn: {
     backgroundColor: StickiesColors.grayDark,
+    borderBottomColor: '#cbd5e1',
   },
   cancelBtnLabel: {
-    ...Typography.body,
-    fontWeight: '600',
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.inkMuted,
   },
   cancelBtnMargin: {
@@ -242,9 +259,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   error: {
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.error,
     marginTop: 10,
-    fontSize: 14,
   },
   soundWaveWrap: {
     minHeight: 48,
@@ -263,8 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: StickiesColors.ink,
   },
   duration: {
-    fontSize: 26,
-    fontWeight: '700',
+    ...TypographyRounded.sectionHeader,
     color: StickiesColors.ink,
     fontVariant: ['tabular-nums'],
   },

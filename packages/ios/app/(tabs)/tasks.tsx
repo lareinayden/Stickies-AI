@@ -17,7 +17,7 @@ import { TaskCard } from '../../src/components/TaskCard';
 import { StickyCard } from '../../src/components/StickyCard';
 import { Swipeable } from '../../src/components/Swipeable';
 import { getTasks, updateTask, patchTask, deleteTask } from '../../src/api/client';
-import { StickiesColors } from '../../src/theme/stickies';
+import { StickiesColors, TypographyRounded } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
 import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { Task } from '../../src/types';
@@ -35,6 +35,7 @@ export default function Tasks() {
     title: '',
     description: '',
     dueDate: '',
+    dueTime: '',
     type: 'task' as 'task' | 'reminder' | 'note',
     priority: '' as '' | 'low' | 'medium' | 'high',
   });
@@ -157,10 +158,18 @@ export default function Tasks() {
 
   const openEdit = useCallback((task: Task) => {
     setEditingTask(task);
+    const d = task.dueDate ? new Date(task.dueDate) : null;
+    const dueDate = d
+      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      : '';
+    const dueTime = d
+      ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      : '';
     setEditForm({
       title: task.title,
       description: task.description ?? '',
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '',
+      dueDate,
+      dueTime,
       type: task.type,
       priority: task.priority ?? '',
     });
@@ -176,12 +185,20 @@ export default function Tasks() {
     if (!title) return;
     setSaving(true);
     try {
+      let dueDateValue: string | null = null;
+      if (editForm.dueDate.trim()) {
+        const raw = editForm.dueTime.trim() || '00:00';
+        const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+        const hours = match ? String(parseInt(match[1], 10)).padStart(2, '0') : '00';
+        const minutes = match ? match[2] : '00';
+        dueDateValue = `${editForm.dueDate.trim()}T${hours}:${minutes}:00`;
+      }
       const updated = await patchTask(userId, editingTask.id, {
         title,
         description: editForm.description.trim() || null,
         type: editForm.type,
         priority: editForm.priority || null,
-        dueDate: editForm.dueDate.trim() || null,
+        dueDate: dueDateValue,
       });
       setTasks((prev) =>
         prev.map((t) => (t.id === editingTask.id ? { ...t, ...updated } : t))
@@ -344,7 +361,7 @@ export default function Tasks() {
               </Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalBodyContent}>
             <Text style={styles.modalLabel}>Title</Text>
             <TextInput
               style={styles.modalInput}
@@ -369,6 +386,15 @@ export default function Tasks() {
               value={editForm.dueDate}
               onChangeText={(text) => setEditForm((f) => ({ ...f, dueDate: text }))}
               placeholder="2025-01-25"
+              placeholderTextColor={StickiesColors.inkLight}
+              keyboardType="numbers-and-punctuation"
+            />
+            <Text style={styles.modalLabel}>Due time (optional, HH:mm)</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editForm.dueTime}
+              onChangeText={(text) => setEditForm((f) => ({ ...f, dueTime: text }))}
+              placeholder="18:00"
               placeholderTextColor={StickiesColors.inkLight}
               keyboardType="numbers-and-punctuation"
             />
@@ -435,20 +461,18 @@ const styles = StyleSheet.create({
     backgroundColor: StickiesColors.desk,
   },
   list: {
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingTop: 6,
     paddingBottom: 32,
     backgroundColor: StickiesColors.desk,
   },
   sectionHeaderContainer: {
-    paddingVertical: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
   sectionHeaderText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: StickiesColors.inkMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    ...TypographyRounded.sectionHeader,
+    color: StickiesColors.ink,
   },
   centered: {
     flex: 1,
@@ -458,85 +482,100 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptySticky: {
-    maxWidth: 320,
+    maxWidth: 300,
     alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   emptyTitle: {
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: '600',
     color: StickiesColors.ink,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   empty: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 22,
     color: StickiesColors.inkMuted,
     textAlign: 'center',
   },
   errorTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: StickiesColors.ink,
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   hint: {
-    fontSize: 14,
+    fontSize: 13,
     color: StickiesColors.inkLight,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 10,
   },
   modalContainer: {
     flex: 1,
     backgroundColor: StickiesColors.desk,
-    paddingTop: 24,
+    paddingTop: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    paddingBottom: 14,
+    borderBottomWidth: 3,
+    borderBottomColor: StickiesColors.grayDark,
+    backgroundColor: StickiesColors.deskAlt,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    ...TypographyRounded.sectionHeader,
+    fontSize: 20,
+    lineHeight: 26,
     color: StickiesColors.ink,
   },
   modalCancel: {
-    fontSize: 16,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   modalSave: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1d4ed8',
+    ...TypographyRounded.cardMeta,
+    fontWeight: '700',
+    color: StickiesColors.success,
   },
   modalSaveDisabled: {
     opacity: 0.5,
   },
   modalBody: {
     flex: 1,
-    padding: 20,
+  },
+  modalBodyContent: {
+    padding: 18,
+    paddingBottom: 32,
   },
   modalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
     marginBottom: 6,
     marginTop: 12,
   },
   modalInput: {
     backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: StickiesColors.grayDark,
-    borderRadius: 10,
-    padding: 12,
+    borderWidth: 0,
+    borderBottomWidth: 3,
+    borderBottomColor: StickiesColors.grayDark,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     fontSize: 16,
+    fontWeight: '600',
     color: StickiesColors.ink,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+    elevation: 2,
   },
   modalInputMultiline: {
     minHeight: 80,
@@ -545,42 +584,51 @@ const styles = StyleSheet.create({
   modalRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 4,
+    marginTop: 6,
+    gap: 10,
   },
   modalChip: {
     marginRight: 8,
     marginBottom: 8,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: StickiesColors.gray,
-    borderWidth: 1,
-    borderColor: StickiesColors.grayDark,
+    borderBottomWidth: 2,
+    borderBottomColor: StickiesColors.grayDark,
+    borderWidth: 0,
   },
   modalChipSelected: {
-    backgroundColor: StickiesColors.blue,
-    borderColor: StickiesColors.blueDark,
+    backgroundColor: StickiesColors.taskCardUpcoming,
+    borderBottomColor: StickiesColors.taskCardUpcomingBorder,
   },
   modalChipText: {
-    fontSize: 14,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   modalChipTextSelected: {
-    color: '#1e3a8a',
-    fontWeight: '600',
+    color: StickiesColors.ink,
+    fontWeight: '700',
   },
   modalDeleteButton: {
     marginTop: 24,
     paddingVertical: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: StickiesColors.error,
-    borderRadius: 10,
-    backgroundColor: 'rgba(185, 28, 28, 0.08)',
+    justifyContent: 'center',
+    borderWidth: 0,
+    borderBottomWidth: 3,
+    borderBottomColor: StickiesColors.error,
+    borderRadius: 16,
+    backgroundColor: 'rgba(185, 28, 28, 0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+    elevation: 2,
   },
   modalDeleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...TypographyRounded.cardTitle,
+    fontSize: 15,
     color: StickiesColors.error,
   },
 });

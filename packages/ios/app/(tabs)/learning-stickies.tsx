@@ -16,7 +16,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StickyCard } from '../../src/components/StickyCard';
 import { FlipCard } from '../../src/components/FlipCard';
 import { Swipeable } from '../../src/components/Swipeable';
 import {
@@ -29,7 +28,7 @@ import {
   createImmediateLearningTask,
   trackStickyReview,
 } from '../../src/api/client';
-import { StickiesColors, colorForArea, Typography, Spacing } from '../../src/theme/stickies';
+import { StickiesColors, colorForAreaByIndex, borderColorForAreaByIndex, TypographyRounded, Spacing } from '../../src/theme/stickies';
 import { hapticFeedback } from '../../src/utils/haptics';
 import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { LearningSticky } from '../../src/types';
@@ -266,9 +265,9 @@ export default function LearningStickiesScreen() {
   if (!userId) {
     return (
       <View style={styles.centered}>
-        <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
+        <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardToday, borderBottomColor: StickiesColors.taskCardTodayBorder }]}>
           <Text style={styles.empty}>Log in to see learning stickies.</Text>
-        </StickyCard>
+        </View>
       </View>
     );
   }
@@ -298,24 +297,24 @@ export default function LearningStickiesScreen() {
 
           {fetchError && areaStickies.length === 0 ? (
             <View style={styles.centeredList}>
-              <StickyCard backgroundColor={StickiesColors.pink} softShadow style={styles.emptySticky}>
+              <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardPast, borderBottomColor: StickiesColors.taskCardPastBorder }]}>
                 <Text style={styles.errorTitle}>Could not load stickies</Text>
                 <Text style={styles.empty}>{fetchError}</Text>
                 <Text style={styles.hint}>Pull down to retry.</Text>
-              </StickyCard>
+              </View>
             </View>
           ) : loading && areaStickies.length === 0 ? (
             <View style={styles.centeredList}>
-              <StickyCard backgroundColor={StickiesColors.blue} softShadow style={styles.emptySticky}>
+              <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardUpcoming, borderBottomColor: StickiesColors.taskCardUpcomingBorder }]}>
                 <ActivityIndicator size="small" color={StickiesColors.inkMuted} />
                 <Text style={[styles.empty, { marginTop: 8 }]}>Loading…</Text>
-              </StickyCard>
+              </View>
             </View>
           ) : areaStickies.length === 0 ? (
             <View style={styles.centeredList}>
-              <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
+              <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardToday, borderBottomColor: StickiesColors.taskCardTodayBorder }]}>
                 <Text style={styles.empty}>No stickies in this area. Use “Add more” above to prompt the LLM.</Text>
-              </StickyCard>
+              </View>
             </View>
           ) : (
             <FlatList
@@ -332,7 +331,10 @@ export default function LearningStickiesScreen() {
               }
               renderItem={({ item }) => {
                 const status = statusById[item.id] ?? 'needs_review';
-                const bg = selectedDomain ? colorForArea(selectedDomain) : StickiesColors.blue;
+                const areaIndex = Math.max(0, areas.findIndex((a) => a.domain === selectedDomain));
+                const bg = selectedDomain ? colorForAreaByIndex(areaIndex) : StickiesColors.taskCardUpcoming;
+                const borderBottom = selectedDomain ? borderColorForAreaByIndex(areaIndex) : StickiesColors.taskCardUpcomingBorder;
+                const isLearned = status === 'learned';
                 return (
                   <Swipeable
                     rightActions={[
@@ -348,76 +350,86 @@ export default function LearningStickiesScreen() {
                     <View
                       style={[
                         styles.stickyGridItem,
-                        status === 'learned' && styles.learnedDim,
+                        isLearned && styles.learnedDim,
                       ]}
                     >
+                      {isLearned ? (
+                        <View style={[styles.masteredSheen, styles.flipCardSheen]} pointerEvents="none" />
+                      ) : null}
                       <FlipCard
-                        borderRadius={20}
-                      style={styles.flipPressable}
-                      cardStyle={[styles.flipCard, { backgroundColor: bg }]}
-                      front={
-                        <View style={styles.flipFaceContent}>
-                          <Text style={styles.concept} numberOfLines={3}>
-                            {item.concept}
-                          </Text>
-                          <Text style={styles.flipHint}>Tap to flip</Text>
-                        </View>
-                      }
-                      back={
-                        <View style={styles.flipFaceContent}>
-                          <Text style={styles.definition} numberOfLines={5}>
-                            {item.definition}
-                          </Text>
-                          {item.example ? (
-                            <Text style={styles.example} numberOfLines={3}>
-                              Example: {item.example}
+                        borderRadius={16}
+                        style={styles.flipPressable}
+                        cardStyle={[
+                          styles.flipCard,
+                          {
+                            backgroundColor: bg,
+                            borderBottomWidth: 3,
+                            borderBottomColor: borderBottom,
+                          },
+                        ]}
+                        front={
+                          <View style={styles.flipFaceContent}>
+                            <Text style={styles.concept} numberOfLines={3}>
+                              {item.concept}
                             </Text>
-                          ) : null}
-                          <View style={styles.statusRow}>
-                            <TouchableOpacity
-                              onPress={() =>
-                                setStickyStatus(item, 'needs_review')
-                              }
-                              style={[
-                                styles.statusButton,
-                                status === 'needs_review' && styles.statusButtonActive,
-                              ]}
-                              activeOpacity={0.85}
-                            >
-                              <Text
-                                style={[
-                                  styles.statusButtonText,
-                                  status === 'needs_review' &&
-                                    styles.statusButtonTextActive,
-                                ]}
-                              >
-                                Needs review
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() =>
-                                setStickyStatus(item, 'learned')
-                              }
-                              style={[
-                                styles.statusButton,
-                                status === 'learned' && styles.statusButtonActive,
-                              ]}
-                              activeOpacity={0.85}
-                            >
-                              <Text
-                                style={[
-                                  styles.statusButtonText,
-                                  status === 'learned' &&
-                                    styles.statusButtonTextActive,
-                                ]}
-                              >
-                                Learned
-                              </Text>
-                            </TouchableOpacity>
+                            <Text style={styles.flipHint}>Tap to flip</Text>
                           </View>
-                        </View>
-                      }
-                    />
+                        }
+                        back={
+                          <View style={styles.flipFaceContent}>
+                            <Text style={styles.definition} numberOfLines={5}>
+                              {item.definition}
+                            </Text>
+                            {item.example ? (
+                              <Text style={styles.example} numberOfLines={3}>
+                                Example: {item.example}
+                              </Text>
+                            ) : null}
+                            <View style={styles.statusRow}>
+                              <TouchableOpacity
+                                onPress={() =>
+                                  setStickyStatus(item, 'needs_review')
+                                }
+                                style={[
+                                  styles.statusButton,
+                                  status === 'needs_review' && styles.statusButtonActive,
+                                ]}
+                                activeOpacity={0.85}
+                              >
+                                <Text
+                                  style={[
+                                    styles.statusButtonText,
+                                    status === 'needs_review' &&
+                                      styles.statusButtonTextActive,
+                                  ]}
+                                >
+                                  Needs review
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() =>
+                                  setStickyStatus(item, 'learned')
+                                }
+                                style={[
+                                  styles.statusButton,
+                                  status === 'learned' && styles.statusButtonActive,
+                                ]}
+                                activeOpacity={0.85}
+                              >
+                                <Text
+                                  style={[
+                                    styles.statusButtonText,
+                                    status === 'learned' &&
+                                      styles.statusButtonTextActive,
+                                  ]}
+                                >
+                                  Learned
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        }
+                      />
                     </View>
                   </Swipeable>
                 );
@@ -430,24 +442,24 @@ export default function LearningStickiesScreen() {
         <>
           {fetchError && areas.length === 0 ? (
             <View style={styles.centeredList}>
-              <StickyCard backgroundColor={StickiesColors.pink} softShadow style={styles.emptySticky}>
+              <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardPast, borderBottomColor: StickiesColors.taskCardPastBorder }]}>
                 <Text style={styles.errorTitle}>Could not load areas</Text>
                 <Text style={styles.empty}>{fetchError}</Text>
                 <Text style={styles.hint}>Pull down to retry.</Text>
-              </StickyCard>
+              </View>
             </View>
           ) : loading && areas.length === 0 ? (
             <View style={styles.centeredList}>
-              <StickyCard backgroundColor={StickiesColors.blue} softShadow style={styles.emptySticky}>
+              <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardUpcoming, borderBottomColor: StickiesColors.taskCardUpcomingBorder }]}>
                 <ActivityIndicator size="small" color={StickiesColors.inkMuted} />
                 <Text style={[styles.empty, { marginTop: 8 }]}>Loading…</Text>
-              </StickyCard>
+              </View>
             </View>
           ) : areas.length === 0 ? (
             <View style={styles.centeredList}>
-              <StickyCard backgroundColor={StickiesColors.yellow} softShadow style={styles.emptySticky}>
+              <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardToday, borderBottomColor: StickiesColors.taskCardTodayBorder }]}>
                 <Text style={styles.empty}>No areas yet. Add one from Home (voice or type), then tap “Create learning area”.</Text>
-              </StickyCard>
+              </View>
             </View>
           ) : (
             <FlatList
@@ -457,7 +469,7 @@ export default function LearningStickiesScreen() {
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={StickiesColors.inkMuted} />
               }
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <Swipeable
                   rightActions={[
                     {
@@ -470,12 +482,15 @@ export default function LearningStickiesScreen() {
                   ]}
                 >
                   <TouchableOpacity
-                    style={[styles.areaCard, { backgroundColor: colorForArea(item.domain) }]}
+                    style={[
+                      styles.areaCard,
+                      { backgroundColor: colorForAreaByIndex(index), borderBottomColor: borderColorForAreaByIndex(index) },
+                    ]}
                     onPress={() => {
                       hapticFeedback.tap();
                       setSelectedDomain(item.domain);
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <View style={styles.areaCardHeader}>
                       <Text style={styles.areaCardTitle}>{item.domain}</Text>
@@ -519,110 +534,161 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  emptyCard: {
+    maxWidth: 300,
+    borderRadius: 16,
+    borderBottomWidth: 3,
+    padding: 18,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.07,
+          shadowRadius: 6,
+        }
+      : { elevation: 3 }),
+  },
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: StickiesColors.grayDark,
+    backgroundColor: StickiesColors.deskAlt,
   },
   backButton: {
     paddingVertical: 6,
     paddingRight: 8,
   },
   backButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   detailTitle: {
     flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
+    ...TypographyRounded.sectionHeader,
+    fontSize: 19,
+    lineHeight: 24,
     color: StickiesColors.ink,
   },
-  errorText: {
-    fontSize: 14,
-    color: StickiesColors.error,
-    marginTop: 8,
-  },
-  removeAreaText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: StickiesColors.error,
-  },
   list: {
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingTop: 12,
     paddingBottom: 32,
-  },
-  stickyGridRow: {
-    gap: 12,
-    marginBottom: 12,
   },
   stickyGridItem: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
+    position: 'relative',
   },
   learnedDim: {
-    opacity: 0.4,
+    opacity: 0.5,
+  },
+  masteredSheen: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: StickiesColors.masteredSheen,
+    borderRadius: 16,
+    zIndex: 1,
+  },
+  flipCardSheen: {
+    width: '90%',
+    alignSelf: 'center',
+    height: 272,
   },
   flipPressable: {
     width: '90%',
-    height: 320,
+    height: 272,
   },
   flipCard: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
     elevation: 3,
   },
   flipFaceContent: {
     flex: 1,
-    padding: 14,
+    padding: 16,
     justifyContent: 'center',
   },
   flipHint: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 10,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkLight,
     textAlign: 'center',
   },
-  areasEditRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  concept: {
+    ...TypographyRounded.cardTitle,
+    fontSize: 18,
+    color: StickiesColors.ink,
+    marginBottom: 10,
+    textAlign: 'center',
   },
-  editButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  editButtonText: {
+  definition: {
+    ...TypographyRounded.cardTitle,
     fontSize: 15,
     fontWeight: '600',
+    color: StickiesColors.ink,
+    lineHeight: 22,
+  },
+  example: {
+    marginTop: 10,
+    ...TypographyRounded.cardMeta,
+    color: StickiesColors.inkMuted,
+    lineHeight: 18,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  statusButton: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderBottomWidth: 2,
+    borderColor: 'rgba(0,0,0,0.12)',
+    borderBottomColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+  },
+  statusButtonActive: {
+    borderBottomColor: StickiesColors.taskCardUpcomingBorder,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+  },
+  statusButtonText: {
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
-  areaCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+  statusButtonTextActive: {
+    color: StickiesColors.ink,
+    fontWeight: '700',
   },
   areaCard: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: StickiesColors.grayDark,
-    borderRadius: 12,
+    borderBottomWidth: 3,
+    borderRadius: 16,
     padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     flexDirection: 'column',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 3,
   },
   areaCardEdit: {
     opacity: 0.95,
@@ -633,118 +699,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   areaCardTitle: {
-    ...Typography.body,
-    fontWeight: '600',
+    ...TypographyRounded.cardTitle,
     color: StickiesColors.ink,
     flex: 1,
   },
   areaCardCount: {
-    ...Typography.subheadline,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
-  },
-  stickyRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 16,
-  },
-  stickyWrapper: {
-    flex: 1,
-    minWidth: 0,
-  },
-  stickyCard: {
-    padding: 14,
-  },
-  concept: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: StickiesColors.ink,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  definition: {
-    fontSize: 15,
-    color: StickiesColors.ink,
-    lineHeight: 22,
-  },
-  example: {
-    marginTop: 8,
-    fontSize: 13,
-    color: StickiesColors.inkMuted,
-    lineHeight: 18,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-  statusButton: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    alignItems: 'center',
-  },
-  statusButtonActive: {
-    borderColor: 'rgba(0,0,0,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  statusButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: StickiesColors.inkMuted,
-  },
-  statusButtonTextActive: {
-    color: StickiesColors.ink,
-  },
-  removeInline: {
-    marginTop: 10,
-    alignSelf: 'flex-end',
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  removeInlineText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: StickiesColors.error,
-  },
-  removeStickyButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    justifyContent: 'center',
-  },
-  removeStickyText: {
-    fontSize: 14,
-    color: StickiesColors.inkMuted,
-  },
-  centeredList: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  emptySticky: {
-    maxWidth: 320,
-  },
-  empty: {
-    fontSize: 16,
-    color: StickiesColors.inkMuted,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: StickiesColors.ink,
-    marginBottom: 8,
-  },
-  hint: {
-    fontSize: 14,
-    color: StickiesColors.inkLight,
-    textAlign: 'center',
-    marginTop: 12,
   },
   areaCardHeader: {
     flexDirection: 'row',
@@ -757,33 +718,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
     width: '100%',
   },
   frequencyLabel: {
-    fontSize: 12,
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
-    marginRight: 2,
+    marginRight: 4,
   },
   freqChip: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.12)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0,0,0,0.15)',
+    borderWidth: 0,
   },
   freqChipSelected: {
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    borderColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: StickiesColors.taskCardUpcoming,
+    borderBottomColor: StickiesColors.taskCardUpcomingBorder,
   },
   freqChipText: {
-    fontSize: 12,
-    fontWeight: '500',
+    ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
   },
   freqChipTextSelected: {
     color: StickiesColors.ink,
     fontWeight: '700',
+  },
+  centeredList: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  empty: {
+    ...TypographyRounded.cardMeta,
+    fontSize: 15,
+    color: StickiesColors.inkMuted,
+    textAlign: 'center',
+  },
+  errorTitle: {
+    ...TypographyRounded.cardTitle,
+    fontSize: 17,
+    color: StickiesColors.ink,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  hint: {
+    ...TypographyRounded.cardMeta,
+    color: StickiesColors.inkLight,
+    textAlign: 'center',
+    marginTop: 10,
   },
 });
