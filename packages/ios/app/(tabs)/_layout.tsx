@@ -24,19 +24,20 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: StickiesColors.ink,
+        tabBarActiveTintColor: StickiesColors.success,
         tabBarInactiveTintColor: StickiesColors.inkLight,
         tabBarStyle: {
           backgroundColor: StickiesColors.deskAlt,
-          borderTopWidth: 0,
+          borderTopWidth: 2,
+          borderTopColor: 'rgba(0,0,0,0.06)',
           elevation: 0,
-          height: Platform.OS === 'ios' ? 88 : 70,
-          paddingTop: 8,
+          height: Platform.OS === 'ios' ? 88 : 76,
+          paddingTop: 10,
           paddingBottom: Platform.OS === 'ios' ? 32 : 12,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: 12,
+          fontWeight: '700',
           marginTop: 4,
         },
         tabBarIconStyle: {
@@ -50,8 +51,8 @@ export default function TabsLayout() {
         headerTintColor: StickiesColors.ink,
         headerShadowVisible: false,
         headerTitleStyle: {
-          fontSize: 17,
-          fontWeight: '600',
+          fontSize: 18,
+          fontWeight: '700',
         },
       }}
     >
@@ -65,7 +66,8 @@ export default function TabsLayout() {
             <SymbolView
               name={focused ? 'house.fill' : 'house'}
               tintColor={color}
-              size={24}
+              size={28}
+              weight="semibold"
               type="hierarchical"
             />
           ),
@@ -80,7 +82,8 @@ export default function TabsLayout() {
             <SymbolView
               name={focused ? 'checklist.checked' : 'checklist'}
               tintColor={color}
-              size={24}
+              size={28}
+              weight="semibold"
               type="hierarchical"
             />
           ),
@@ -95,7 +98,8 @@ export default function TabsLayout() {
             <SymbolView
               name={focused ? 'brain.fill' : 'brain'}
               tintColor={color}
-              size={24}
+              size={28}
+              weight="semibold"
               type="hierarchical"
             />
           ),
@@ -110,7 +114,8 @@ export default function TabsLayout() {
             <SymbolView
               name={focused ? 'sparkles' : 'sparkles'}
               tintColor={color}
-              size={24}
+              size={28}
+              weight="semibold"
               type="hierarchical"
             />
           ),
@@ -125,7 +130,8 @@ export default function TabsLayout() {
             <SymbolView
               name={focused ? 'person.crop.circle.fill' : 'person.crop.circle'}
               tintColor={color}
-              size={24}
+              size={28}
+              weight="semibold"
               type="hierarchical"
             />
           ),

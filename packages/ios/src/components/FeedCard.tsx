@@ -11,12 +11,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { StickiesColors } from '../theme/stickies';
 
-const CARD_RADIUS = 20;
+const CARD_RADIUS = 16;
+const BOTTOM_BORDER = 3;
 const PremiumShadow = {
   shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.05,
-  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.07,
+  shadowRadius: 6,
   elevation: 3,
 };
 
@@ -28,12 +29,17 @@ export function feedCardHeight(): number {
 }
 
 const CARD_COLORS: string[] = [
+  StickiesColors.taskCardToday,
+  StickiesColors.taskCardUpcoming,
+  StickiesColors.taskCardPast,
   StickiesColors.blue,
-  StickiesColors.yellow,
-  StickiesColors.pink,
-  StickiesColors.purple,
-  StickiesColors.green,
-  StickiesColors.orange,
+];
+
+const CARD_BORDER_COLORS: string[] = [
+  StickiesColors.taskCardTodayBorder,
+  StickiesColors.taskCardUpcomingBorder,
+  StickiesColors.taskCardPastBorder,
+  StickiesColors.blueBorder,
 ];
 
 interface FeedCardProps {
@@ -52,6 +58,7 @@ export function FeedCard({
   style,
 }: FeedCardProps) {
   const backgroundColor = CARD_COLORS[index % CARD_COLORS.length];
+  const borderBottomColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
 
   const animatedStyle = useAnimatedStyle(() => {
     const offset = scrollOffset.value;
@@ -75,7 +82,7 @@ export function FeedCard({
         style,
       ]}
     >
-      <View style={[styles.card, { backgroundColor }]}>
+      <View style={[styles.card, { backgroundColor, borderBottomWidth: BOTTOM_BORDER, borderBottomColor }]}>
         <View style={styles.content}>{children}</View>
       </View>
     </Animated.View>
@@ -85,8 +92,8 @@ export function FeedCard({
 const styles = StyleSheet.create({
   outer: {
     width: '100%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -99,7 +106,7 @@ const styles = StyleSheet.create({
   },
   content: {
     ...StyleSheet.absoluteFillObject,
-    padding: 20,
+    padding: 16,
     justifyContent: 'center',
   },
 });
