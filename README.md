@@ -1,6 +1,6 @@
 # Stickies AI
 
-An AI-powered dashboard that transforms voice-captured tasks, technical concepts, and news feeds into interactive, habit-forming "Sticky Notes" with automated recall and summarization.
+An AI-powered dashboard that transforms voice-captured tasks, technical concepts, and news feeds into interactive, habit-forming "Sticky Notes" with automated recall, summarization, and a **lightweight rewards/reinforcement system** (effort heatmaps, streaks, and unlocks).
 
 ## Prerequisites
 
@@ -119,6 +119,9 @@ npx expo install @shopify/flash-list@1.7.3
 8. **The app should open in the iOS Simulator** and connect to the Metro bundler automatically.
 
 ## Detailed Setup Instructions
+
+> **Note about the rewards system**  
+> The rewards/reinforcement features (effort heatmaps, streaks, unlocks) require the Postgres schema to be initialized. If you see errors like `relation "events" does not exist` in the iOS Rewards tab or web `/rewards` page, you are pointing at a database that has **not** run the latest `npm run db:init`.
 
 ## Web App Setup
 
@@ -257,6 +260,7 @@ After setting up PostgreSQL and configuring your `.env` file, initialize the dat
 cd packages/web
 npm run db:init
 ```
+This creates and/or migrates all core tables, including the rewards-related tables: `events`, `daily_stats`, `streaks`, `unlocks`, and `user_preferences`.
 
 You should see:
 ```
@@ -578,6 +582,7 @@ Once the app opens in the simulator:
 - **Feed View** - Unified home feed displaying both tasks and learning stickies
 - **Real-time Transcription** - Live voice transcription with status updates using OpenAI Whisper
 - **Multi-user Support** - Mock user authentication with AsyncStorage persistence
+- **Rewards & Progress** - Dedicated Rewards tab showing an effort heatmap, weekly recap, and unlocks (e.g., theme unlock after a 7-day streak), emphasizing proof of effort over strict streak pressure
 
 ### iOS App Available Scripts
 
@@ -608,7 +613,7 @@ Stickies-AI/
 │   │   ├── src/
 │   │   │   ├── app/              # Next.js app directory (routes, pages)
 │   │   │   ├── components/       # React components
-│   │   │   ├── lib/              # Core libraries (db, audio, llm, auth)
+│   │   │   ├── lib/              # Core libraries (db, audio, llm, auth, rewards)
 │   │   │   └── hooks/            # React hooks
 │   │   ├── .env.example          # Environment variables template
 │   │   ├── README.md             # Web package documentation
@@ -619,13 +624,13 @@ Stickies-AI/
 │   │   └── SECURITY.md           # Security guide
 │   └── ios/                      # Expo React Native iOS app
 │       ├── app/                  # Expo Router screens
-│       │   ├── (tabs)/           # Tab navigation screens
+│       │   ├── (tabs)/           # Tab navigation screens (Home, Tasks, Learning, Rewards, Account)
 │       │   ├── _layout.tsx       # Root layout with gesture handler
 │       │   ├── login.tsx         # User login screen
 │       │   └── add-note.tsx      # Voice/text input modal
 │       ├── src/
 │       │   ├── api/
-│       │   ├── components/       # UI components
+│       │   ├── components/       # UI components (including StickyCard, FlipCard, VoiceRecorder)
 │       │   ├── hooks/            # Custom React hooks
 │       │   ├── theme/
 │       │   ├── utils/
@@ -635,6 +640,9 @@ Stickies-AI/
 │       ├── app.json              # Expo configuration
 │       ├── README.md             # iOS app documentation
 │       └── UI_IMPROVEMENTS.md    # UI improvements guide
+├── _plans/                       # High-level implementation plans
+│   ├── rewards-reinforcement-implementation.md  # Current rewards / reinforcement system design + implementation notes
+│   └── ...                       # Other feature plans (auth, microphone input, etc.)
 ├── docker-compose.yml            # Docker Compose configuration
 └── README.md                     # This file
 ```
@@ -648,6 +656,7 @@ Stickies-AI/
 - [API Documentation](packages/web/API_DOCUMENTATION.md)
 - [Testing Guide](packages/web/TESTING.md)
 - [Security Guide](packages/web/SECURITY.md)
+- [Rewards & Reinforcement Implementation Plan](_plans/rewards-reinforcement-implementation.md)
 
 ## Getting Help
 
