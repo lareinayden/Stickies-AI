@@ -142,6 +142,42 @@ export async function getRewardsUnlocks(
   return { unlocks: json.unlocks ?? [] };
 }
 
+export async function getRewardsProductivity(userId: string): Promise<{
+  peakWindow: {
+    startHour: number;
+    endHour: number;
+    label: string;
+    activityCount: number;
+    notificationHour: number;
+    notificationMinute: number;
+  } | null;
+  insight: string;
+  activityByHour?: Array<{ hour: number; count: number }>;
+}> {
+  const res = await fetch(`${BASE_URL}/api/rewards/productivity`, {
+    headers: headers(userId),
+  });
+  const json = (await res.json()) as {
+    peakWindow?: {
+      startHour: number;
+      endHour: number;
+      label: string;
+      activityCount: number;
+      notificationHour: number;
+      notificationMinute: number;
+    } | null;
+    insight?: string;
+    activityByHour?: Array<{ hour: number; count: number }>;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || `Get rewards productivity failed: ${res.status}`);
+  return {
+    peakWindow: json.peakWindow ?? null,
+    insight: json.insight ?? 'Complete more tasks and reviews to unlock your productivity insight.',
+    activityByHour: json.activityByHour,
+  };
+}
+
 export async function uploadVoice(
   userId: string,
   uri: string,

@@ -18,6 +18,7 @@ import {
   DAILY_STATS_TABLE_SCHEMA,
   STREAKS_TABLE_SCHEMA,
   UNLOCKS_TABLE_SCHEMA,
+  PUSH_LOG_TABLE_SCHEMA,
 } from './schema';
 
 let pool: Pool | null = null;
@@ -71,6 +72,7 @@ export async function initializeDatabase(): Promise<void> {
     await db.query(DAILY_STATS_TABLE_SCHEMA);
     await db.query(STREAKS_TABLE_SCHEMA);
     await db.query(UNLOCKS_TABLE_SCHEMA);
+    await db.query(PUSH_LOG_TABLE_SCHEMA);
 
     // Run migrations to add user_id columns if they don't exist
     await db.query(MIGRATE_TRANSCRIPTIONS_USER_ID);

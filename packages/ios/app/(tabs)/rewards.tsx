@@ -14,6 +14,7 @@ import {
   getRewardsWeeklyReport,
   getRewardsHighlights,
   getRewardsUnlocks,
+  getRewardsProductivity,
 } from '../../src/api/client';
 import { subscribeRewardsRefresh } from '../../src/utils/rewards-refresh';
 import { StickiesColors, TypographyRounded, Spacing } from '../../src/theme/stickies';
@@ -87,6 +88,7 @@ export default function RewardsScreen() {
   const [unlocks, setUnlocks] = useState<
     Array<{ id: string; type: string; isEnabled: boolean; earnedAt: string; metadata: unknown }>
   >([]);
+  const [insight, setInsight] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const uid = await AsyncStorage.getItem(USER_KEY);
@@ -96,16 +98,18 @@ export default function RewardsScreen() {
     setError(null);
     setLoading(true);
     try {
-      const [dailyRes, weeklyRes, highlightsRes, unlocksRes] = await Promise.all([
+      const [dailyRes, weeklyRes, highlightsRes, unlocksRes, productivityRes] = await Promise.all([
         getRewardsDailyStats(uid, 30),
         getRewardsWeeklyReport(uid),
         getRewardsHighlights(uid),
         getRewardsUnlocks(uid),
+        getRewardsProductivity(uid),
       ]);
       setDaily(dailyRes.stats);
       setWeekly(weeklyRes);
       setHighlights(highlightsRes.highlights);
       setUnlocks(unlocksRes.unlocks);
+      setInsight(productivityRes.insight ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load rewards');
     } finally {
@@ -168,6 +172,13 @@ export default function RewardsScreen() {
         <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardPast, StickiesColors.taskCardPastBorder)]}>
           <Text style={styles.cardTitle}>Could not load</Text>
           <Text style={styles.cardBody}>{error}</Text>
+        </View>
+      ) : null}
+
+      {insight != null && insight !== '' ? (
+        <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardToday, StickiesColors.taskCardTodayBorder)]}>
+          <Text style={styles.cardTitle}>Your insight</Text>
+          <Text style={styles.cardBody}>{insight}</Text>
         </View>
       ) : null}
 

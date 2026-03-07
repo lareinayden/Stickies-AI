@@ -398,3 +398,32 @@ export const UNLOCKS_TABLE_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_unlocks_user ON unlocks(user_id);
   CREATE INDEX IF NOT EXISTS idx_unlocks_type ON unlocks(unlock_type);
 `;
+
+/**
+ * Push notification log for adaptive timing verification.
+ * Records when a notification was scheduled/delivered per user.
+ */
+export interface PushLogRecord {
+  id: string;
+  user_id: string;
+  scheduled_for: Date;
+  delivered_at: Date | null;
+  peak_start_hour: number;
+  payload: Record<string, unknown> | null;
+  created_at: Date;
+}
+
+export const PUSH_LOG_TABLE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS public.push_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    scheduled_for TIMESTAMPTZ NOT NULL,
+    delivered_at TIMESTAMPTZ,
+    peak_start_hour INTEGER NOT NULL,
+    payload JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_push_log_user ON push_log(user_id);
+  CREATE INDEX IF NOT EXISTS idx_push_log_scheduled ON push_log(scheduled_for);
+`;
