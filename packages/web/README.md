@@ -1,6 +1,9 @@
 # Stickies AI - Web Application
 
-Next.js web application for Stickies AI, including the voice input pipeline backend.
+Next.js web application for Stickies AI, including:
+- The voice input pipeline backend
+- Task and learning-stickies APIs
+- A **rewards/reinforcement layer** (events, daily stats, streaks, unlocks) used by both web and iOS
 
 ## Setup
 
@@ -20,7 +23,7 @@ cp .env.example .env
 ```bash
 npm run db:init
 # Make sure PostgreSQL is running
-# The schema will be automatically created on first connection
+# The schema (including rewards tables) will be automatically created on first connection
 ```
 
 4. Install Tailwind CSS dependencies (if not already installed):
@@ -84,12 +87,13 @@ ffmpeg -version
 
 ## Web Interface
 
-The application includes a web UI for testing the voice input pipeline:
+The application includes a web UI for testing both the voice input pipeline and the rewards data:
 
 1. Start the dev server: `npm run dev`
 2. Open http://localhost:3000 in your browser
 3. Upload an audio file using the form
 4. View real-time status and transcription results
+5. (Optional, for developers) Visit `http://localhost:3000/rewards` to see the rewards debug UI (effort heatmap, weekly recap, highlights) for the currently logged-in user.
 
 ## API Routes
 
@@ -105,6 +109,13 @@ The application includes a web UI for testing the voice input pipeline:
 - `GET /api/task/:taskId` - Get a specific task by ID
 - `PATCH /api/task/:taskId` - Update a task (e.g., mark as completed)
 - `DELETE /api/task/:taskId` - Delete a task
+
+### Rewards & Reinforcement
+- `POST /api/events` - Record an event such as `task_completed` or `sticky_reviewed`
+- `GET /api/rewards/daily-stats` - Aggregated effort stats per day (for heatmaps)
+- `GET /api/rewards/weekly-report` - 7-day summary (active days, totals, average effort)
+- `GET /api/rewards/highlights` - Simple, derived highlights (best day, consistency)
+- `GET /api/rewards/unlocks` - Returns rewards unlocks (e.g., theme unlock after a 7-day streak)
 
 See `API_DOCUMENTATION.md` for detailed API documentation.
 
