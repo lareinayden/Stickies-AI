@@ -32,7 +32,7 @@ describe('Streak Milestones', () => {
     await db.query('DELETE FROM streaks WHERE user_id = $1', [userId]);
   });
 
-  it('awards a theme unlock when reaching a 7-day streak', async () => {
+  it('awards a badge when reaching a 7-day streak', async () => {
     const start = new Date('2024-01-01T00:00:00.000Z');
 
     for (let i = 0; i < 7; i += 1) {
@@ -45,7 +45,7 @@ describe('Streak Milestones', () => {
 
     const unlocks = await getUserUnlocks(userId);
     expect(unlocks.length).toBeGreaterThanOrEqual(1);
-    expect(unlocks.some((u) => u.unlock_type === 'theme')).toBe(true);
+    expect(unlocks.some((u) => u.unlock_type === 'seven_day_streak')).toBe(true);
   });
 });
 

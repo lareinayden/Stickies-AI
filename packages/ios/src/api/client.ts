@@ -129,13 +129,31 @@ export async function getRewardsHighlights(
 export async function getRewardsUnlocks(
   userId: string
 ): Promise<{
-  unlocks: Array<{ id: string; type: string; isEnabled: boolean; earnedAt: string; metadata: unknown }>;
+  unlocks: Array<{
+    id: string;
+    type: string;
+    name: string;
+    description: string;
+    tier: 'bronze' | 'silver' | 'gold';
+    isEnabled: boolean;
+    earnedAt: string;
+    metadata: unknown;
+  }>;
 }> {
   const res = await fetch(`${BASE_URL}/api/rewards/unlocks`, {
     headers: headers(userId),
   });
   const json = (await res.json()) as {
-    unlocks?: Array<{ id: string; type: string; isEnabled: boolean; earnedAt: string; metadata: unknown }>;
+    unlocks?: Array<{
+      id: string;
+      type: string;
+      name: string;
+      description: string;
+      tier: 'bronze' | 'silver' | 'gold';
+      isEnabled: boolean;
+      earnedAt: string;
+      metadata: unknown;
+    }>;
     error?: string;
   };
   if (!res.ok) throw new Error(json.error || `Get rewards unlocks failed: ${res.status}`);

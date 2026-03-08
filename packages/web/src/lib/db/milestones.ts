@@ -3,23 +3,44 @@ import { ensureUnlock } from './unlocks';
 
 /**
  * Check streak-based milestones and award unlocks if needed.
- * For now:
- * - When current_streak >= 7, award a 'theme' unlock once.
+ * Awards:
+ * - 7 days: seven_day_streak (Flame Keeper)
+ * - 30 days: font (Sunbeam)
+ * - 90 days: analytics (Blaze)
+ * - 180 days: org_feature (Igniter)
  */
 export async function checkStreakMilestones(
   userId: string,
   streak: StreakRecord
 ): Promise<UnlockRecord | null> {
-  if (streak.current_streak < 7) {
-    return null;
+  const { current_streak } = streak;
+  let lastUnlock: UnlockRecord | null = null;
+
+  if (current_streak >= 7) {
+    lastUnlock = await ensureUnlock(userId, 'seven_day_streak', {
+      milestone: 'seven_day_streak',
+      currentStreak: current_streak,
+    });
+  }
+  if (current_streak >= 30) {
+    lastUnlock = await ensureUnlock(userId, 'font', {
+      milestone: 'thirty_day_streak',
+      currentStreak: current_streak,
+    });
+  }
+  if (current_streak >= 90) {
+    lastUnlock = await ensureUnlock(userId, 'analytics', {
+      milestone: 'ninety_day_streak',
+      currentStreak: current_streak,
+    });
+  }
+  if (current_streak >= 180) {
+    lastUnlock = await ensureUnlock(userId, 'org_feature', {
+      milestone: 'one_eighty_day_streak',
+      currentStreak: current_streak,
+    });
   }
 
-  // Award a theme unlock when the user hits a 7-day streak.
-  const unlock = await ensureUnlock(userId, 'theme', {
-    milestone: 'seven_day_streak',
-    currentStreak: streak.current_streak,
-  });
-
-  return unlock;
+  return lastUnlock;
 }
 

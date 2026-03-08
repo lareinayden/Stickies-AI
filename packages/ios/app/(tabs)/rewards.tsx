@@ -76,6 +76,19 @@ function levelColor(level: number): string {
   }
 }
 
+function badgeTierColor(tier: 'bronze' | 'silver' | 'gold'): string {
+  switch (tier) {
+    case 'bronze':
+      return '#cd7f32';
+    case 'silver':
+      return '#c0c0c0';
+    case 'gold':
+      return '#ffd700';
+    default:
+      return StickiesColors.inkLight;
+  }
+}
+
 export default function RewardsScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -86,7 +99,16 @@ export default function RewardsScreen() {
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
   const [highlights, setHighlights] = useState<Array<Record<string, unknown>>>([]);
   const [unlocks, setUnlocks] = useState<
-    Array<{ id: string; type: string; isEnabled: boolean; earnedAt: string; metadata: unknown }>
+    Array<{
+      id: string;
+      type: string;
+      name: string;
+      description: string;
+      tier: 'bronze' | 'silver' | 'gold';
+      isEnabled: boolean;
+      earnedAt: string;
+      metadata: unknown;
+    }>
   >([]);
   const [insight, setInsight] = useState<string | null>(null);
 
@@ -265,19 +287,25 @@ export default function RewardsScreen() {
       </View>
 
       <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardUpcoming, StickiesColors.taskCardUpcomingBorder)]}>
-        <Text style={styles.cardTitle}>Unlocks</Text>
+        <Text style={styles.cardTitle}>Badges</Text>
         {unlocks.length === 0 ? (
           <Text style={styles.cardBody}>
-            No unlocks yet. Hit a 7‑day streak to unlock a theme.
+            Earn badges by hitting milestones (e.g. 7‑day streak).
           </Text>
         ) : (
-          <View style={styles.unlockList}>
+          <View style={styles.badgeList}>
             {unlocks.map((u) => (
-              <View key={u.id} style={styles.unlockItem}>
-                <Text style={styles.unlockType}>{u.type}</Text>
-                <Text style={styles.unlockMeta}>
-                  {u.isEnabled ? 'Enabled' : 'Disabled'} · {new Date(u.earnedAt).toLocaleDateString()}
-                </Text>
+              <View key={u.id} style={styles.badgeRow}>
+                <View style={styles.badgeOuter}>
+                  <View style={[styles.badgeRibbon, { backgroundColor: badgeTierColor(u.tier) }]} />
+                  <View style={[styles.badgeMedal, { borderColor: badgeTierColor(u.tier) }]}>
+                    <Text style={styles.badgeName} numberOfLines={2}>{u.name}</Text>
+                  </View>
+                </View>
+                <View style={styles.badgeInfo}>
+                  <Text style={styles.badgeDescription}>{u.description}</Text>
+                  <Text style={styles.badgeEarnedDate}>Earned {new Date(u.earnedAt).toLocaleDateString()}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -428,6 +456,64 @@ const styles = StyleSheet.create({
     marginTop: 4,
     ...TypographyRounded.cardMeta,
     color: StickiesColors.inkMuted,
+  },
+  badgeList: {
+    gap: 20,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(28,25,23,0.05)',
+    borderRadius: 16,
+    padding: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(28,25,23,0.08)',
+  },
+  badgeOuter: {
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  badgeRibbon: {
+    width: 20,
+    height: 10,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    marginBottom: -2,
+  },
+  badgeMedal: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 4,
+    backgroundColor: '#fefce8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  badgeName: {
+    ...TypographyRounded.cardTitle,
+    fontSize: 11,
+    color: StickiesColors.ink,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeInfo: {
+    flex: 1,
+  },
+  badgeDescription: {
+    ...TypographyRounded.cardMeta,
+    fontSize: 11,
+    color: StickiesColors.inkMuted,
+  },
+  badgeEarnedDate: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '500',
+    color: StickiesColors.inkLight,
   },
 });
 

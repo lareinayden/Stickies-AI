@@ -316,7 +316,7 @@ export interface StreakRecord {
   updated_at: Date;
 }
 
-export type UnlockType = 'theme' | 'font' | 'analytics' | 'org_feature';
+export type UnlockType = 'theme' | 'font' | 'analytics' | 'org_feature' | 'seven_day_streak';
 
 export interface UnlockRecord {
   id: string; // UUID

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { getUserUnlocks } from '@/lib/db/unlocks';
+import { getBadgeDef } from '@/lib/badges';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,13 +12,19 @@ export async function GET(request: NextRequest) {
     const unlocks = await getUserUnlocks(userId);
 
     return NextResponse.json({
-      unlocks: unlocks.map((u) => ({
-        id: u.id,
-        type: u.unlock_type,
-        isEnabled: u.is_enabled,
-        earnedAt: u.earned_at.toISOString(),
-        metadata: u.metadata,
-      })),
+      unlocks: unlocks.map((u) => {
+        const badge = getBadgeDef(u.unlock_type);
+        return {
+          id: u.id,
+          type: u.unlock_type,
+          name: badge.name,
+          description: badge.description,
+          tier: badge.tier,
+          isEnabled: u.is_enabled,
+          earnedAt: u.earned_at.toISOString(),
+          metadata: u.metadata,
+        };
+      }),
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Authentication required') {
