@@ -26,10 +26,10 @@ const cardStyle = (bg: string, borderColor: string) => ({
   borderBottomColor: borderColor,
   padding: 16,
   shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.06,
-  shadowRadius: 4,
-  elevation: 2,
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.04,
+  shadowRadius: 3,
+  elevation: 1,
 });
 
 type Phase =
@@ -151,7 +151,7 @@ export function VoiceRecorder({
           onPress={onReset}
           disabled={disabled}
         >
-          <Text style={styles.primaryBtnLabel}>Record again</Text>
+          <Text style={styles.primaryBtnLabel}>Re-record</Text>
         </TouchableOpacity>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>

@@ -97,7 +97,7 @@ export function OnboardingTour({ visible, onDismiss }: OnboardingTourProps) {
 
   if (!step) return null;
 
-  const fabStepCardBottom = insets.bottom + 24 + 56 + 12;
+  const fabStepCardBottom = insets.bottom + 24 + 56 + 12 + 100;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleSkip}>

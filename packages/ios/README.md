@@ -18,7 +18,7 @@ React Native (Expo) iOS app that records voice, uploads to the Stickies AI web b
    npm install
    ```
 
-2. **Configure API URL**
+2. **Configure environment variables**
 
    ```bash
    cp .env.example .env
@@ -26,8 +26,21 @@ React Native (Expo) iOS app that records voice, uploads to the Stickies AI web b
 
    Edit `.env`:
 
-   - **Simulator**: `EXPO_PUBLIC_API_URL=http://localhost:3000`
-   - **Physical device**: use your machine’s LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.100:3000`
+   - **API URL**
+     - **Simulator**: `EXPO_PUBLIC_API_URL=http://localhost:3000`
+     - **Physical device**: use your machine’s LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.100:3000`
+   - **Supabase (required for authentication)**  
+     Use the same values as in `packages/web/.env`, or from your [Supabase](https://supabase.com) project (Settings → API):
+     - `EXPO_PUBLIC_SUPABASE_URL` – e.g. `https://YOUR_PROJECT_REF.supabase.co`
+     - `EXPO_PUBLIC_SUPABASE_ANON_KEY` – your project’s anon/public key
+
+   Example `.env`:
+
+   ```env
+   EXPO_PUBLIC_API_URL=http://localhost:3000
+   EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+   ```
 
 3. **Start the web backend**
 

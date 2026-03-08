@@ -22,6 +22,33 @@ import { hapticFeedback } from '../../src/utils/haptics';
 import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { Task } from '../../src/types';
 
+function normalizeTaskType(type: string): Task['type'] {
+  if (type === 'reminder' || type === 'note') return type;
+  return 'task';
+}
+
+function normalizeTask(task: {
+  id: string;
+  title: string;
+  description: string | null;
+  type: string;
+  priority: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  completedAt: string | null;
+  createdAt: string;
+  ingestionId?: string;
+}): Task {
+  return {
+    ...task,
+    type: normalizeTaskType(task.type),
+    priority:
+      task.priority === 'low' || task.priority === 'medium' || task.priority === 'high'
+        ? task.priority
+        : null,
+  };
+}
+
 export default function Tasks() {
   const { userId } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -107,14 +134,14 @@ export default function Tasks() {
     setLoading(true);
     try {
       const { tasks: list } = await getTasks(userId);
-      setTasks(list ?? []);
+      setTasks((list ?? []).map(normalizeTask));
     } catch (e) {
       setTasks([]);
       setFetchError(e instanceof Error ? e.message : 'Could not load tasks');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     load();
@@ -197,7 +224,9 @@ export default function Tasks() {
         dueDate: dueDateValue,
       });
       setTasks((prev) =>
-        prev.map((t) => (t.id === editingTask.id ? { ...t, ...updated } : t))
+        prev.map((t) =>
+          t.id === editingTask.id ? normalizeTask({ ...t, ...updated }) : t
+        )
       );
       closeEdit();
     } catch (_) {

@@ -16,8 +16,16 @@ npm install
 2. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your database and API credentials
+# Edit .env with your database, OpenAI API, and Supabase credentials
 ```
+
+Required variables include:
+- **Database** – `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- **OpenAI** – `OPENAI_API_KEY` (for Whisper and task summarization)
+- **Supabase (required for authentication)** – from your [Supabase](https://supabase.com) project (Settings → API):
+  - `NEXT_PUBLIC_SUPABASE_URL` – e.g. `https://YOUR_PROJECT_REF.supabase.co`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – your project’s anon/public key
+- **Next.js** – `NEXT_PUBLIC_APP_URL=http://localhost:3000` (or your app URL)
 
 3. Initialize the database:
 ```bash

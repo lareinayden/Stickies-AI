@@ -84,8 +84,12 @@ An AI-powered dashboard that transforms voice-captured tasks, technical concepts
    ```
 
 5. **Edit `.env` file**:
-   - **For iOS Simulator**: `EXPO_PUBLIC_API_URL=http://localhost:3000`
-   - **For Physical Device**: Use your machine's LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.100:3000`
+   - **API URL**
+     - **Simulator**: `EXPO_PUBLIC_API_URL=http://localhost:3000`
+     - **Physical device**: Use your machine's LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.100:3000`
+   - **Supabase (required for authentication)** – use the same values as in `packages/web/.env`, or from your [Supabase](https://supabase.com) project (Settings → API):
+     - `EXPO_PUBLIC_SUPABASE_URL` – e.g. `https://YOUR_PROJECT_REF.supabase.co`
+     - `EXPO_PUBLIC_SUPABASE_ANON_KEY` – your project’s anon/public key
    
    To find your LAN IP:
    ```bash
@@ -155,15 +159,20 @@ DB_PASSWORD=your_password_here
 # OpenAI API Configuration (Required)
 OPENAI_API_KEY=your_openai_api_key_here
 
+# Next.js Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Supabase (required for authentication)
+# Get these from your Supabase project: Dashboard → Settings → API
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
 # Optional: Task Summarizer Configuration
 TASK_SUMMARIZER_MODEL=gpt-4o-mini
 TASK_SUMMARIZER_TEMPERATURE=0.3
-
-# Next.js Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-**Important**: Replace `your_openai_api_key_here` with your actual OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys).
+**Important**: Replace `your_openai_api_key_here` with your actual OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys). For Supabase, use the URL and anon key from your [Supabase](https://supabase.com) project (Settings → API).
 
 ### 3. Database Setup
 
@@ -505,17 +514,15 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-Edit `.env` and set the API URL:
+Edit `.env` and set:
 
-**For iOS Simulator:**
-```env
-EXPO_PUBLIC_API_URL=http://localhost:3000
-```
+**API URL**
+- **For iOS Simulator:** `EXPO_PUBLIC_API_URL=http://localhost:3000`
+- **For Physical Device:** `EXPO_PUBLIC_API_URL=http://YOUR_MACHINE_IP:3000`
 
-**For Physical Device:**
-```env
-EXPO_PUBLIC_API_URL=http://YOUR_MACHINE_IP:3000
-```
+**Supabase (required for authentication)** – use the same values as in `packages/web/.env`, or from your [Supabase](https://supabase.com) project (Settings → API):
+- `EXPO_PUBLIC_SUPABASE_URL` – e.g. `https://YOUR_PROJECT_REF.supabase.co`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` – your project’s anon/public key
 
 To find your machine's IP address:
 ```bash
