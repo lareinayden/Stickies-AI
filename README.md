@@ -167,6 +167,10 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
+# Quick Setup
+NEXT_PUBLIC_SUPABASE_URL=https://zpavsksxismagfzppooi.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYXZza3N4aXNtYWdmenBwb29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDg0NzgsImV4cCI6MjA4ODUyNDQ3OH0.86hzf7nQUMlyfws_panm5W_rS-G6y8M7Wr0vOTCP9I4
+
 # Optional: Task Summarizer Configuration
 TASK_SUMMARIZER_MODEL=gpt-4o-mini
 TASK_SUMMARIZER_TEMPERATURE=0.3
@@ -523,6 +527,10 @@ Edit `.env` and set:
 **Supabase (required for authentication)** – use the same values as in `packages/web/.env`, or from your [Supabase](https://supabase.com) project (Settings → API):
 - `EXPO_PUBLIC_SUPABASE_URL` – e.g. `https://YOUR_PROJECT_REF.supabase.co`
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY` – your project’s anon/public key
+
+# Quick Setup
+NEXT_PUBLIC_SUPABASE_URL=https://zpavsksxismagfzppooi.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYXZza3N4aXNtYWdmenBwb29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDg0NzgsImV4cCI6MjA4ODUyNDQ3OH0.86hzf7nQUMlyfws_panm5W_rS-G6y8M7Wr0vOTCP9I4
 
 To find your machine's IP address:
 ```bash
