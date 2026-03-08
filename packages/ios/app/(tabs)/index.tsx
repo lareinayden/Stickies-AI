@@ -18,6 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useOnboarding } from '../../src/contexts/OnboardingContext';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -40,6 +41,7 @@ export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { userId } = useAuth();
+  const { showFirstTaskEncouragement, dismissFirstTaskEncouragement, onboardingStepId } = useOnboarding();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -209,28 +211,65 @@ export default function Home() {
         }
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 24 }]}
-        onPress={() => {
-          hapticFeedback.press();
-          router.push('/add-note');
-        }}
-        activeOpacity={0.85}
-      >
-        <View style={styles.fabInner}>
-          {Platform.OS === 'ios' ? (
-            <SymbolView
-              name="plus"
-              size={24}
-              tintColor={StickiesColors.ink}
-              weight="medium"
-              fallback={<Text style={styles.fabPlus}>+</Text>}
-            />
-          ) : (
-            <Text style={styles.fabPlus}>+</Text>
-          )}
+      {onboardingStepId === 'fab' ? (
+        <View style={[styles.fabHighlightRing, { bottom: insets.bottom + 24 }]}>
+          <TouchableOpacity
+            style={styles.fabInHighlight}
+            onPress={() => {
+              hapticFeedback.press();
+              dismissFirstTaskEncouragement();
+              router.push('/add-note');
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={styles.fabInner}>
+              {Platform.OS === 'ios' ? (
+                <SymbolView
+                  name="plus"
+                  size={24}
+                  tintColor={StickiesColors.ink}
+                  weight="medium"
+                  fallback={<Text style={styles.fabPlus}>+</Text>}
+                />
+              ) : (
+                <Text style={styles.fabPlus}>+</Text>
+              )}
+            </View>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: insets.bottom + 24 }]}
+          onPress={() => {
+            hapticFeedback.press();
+            dismissFirstTaskEncouragement();
+            router.push('/add-note');
+          }}
+          activeOpacity={0.85}
+        >
+          <View style={styles.fabInner}>
+            {Platform.OS === 'ios' ? (
+              <SymbolView
+                name="plus"
+                size={24}
+                tintColor={StickiesColors.ink}
+                weight="medium"
+                fallback={<Text style={styles.fabPlus}>+</Text>}
+              />
+            ) : (
+              <Text style={styles.fabPlus}>+</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {showFirstTaskEncouragement ? (
+        <View style={[styles.encouragementWrap, { bottom: insets.bottom + 24 + 56 + 12 }]}>
+          <Text style={styles.encouragementText}>
+            Create your first task! Tap + to get started.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -291,6 +330,32 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  fabInHighlight: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  fabHighlightRing: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 3,
+    borderColor: StickiesColors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   fabInner: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -299,5 +364,22 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: StickiesColors.ink,
+  },
+  encouragementWrap: {
+    position: 'absolute',
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: StickiesColors.grayDark,
+    maxWidth: 280,
+  },
+  encouragementText: {
+    ...TypographyRounded.cardMeta,
+    color: StickiesColors.ink,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });

@@ -115,8 +115,8 @@ export default function AddNote() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.pageTitle}>Add tasks or learn something</Text>
-          <Text style={styles.pageSubtitle}>Use voice or type below, then choose what to do.</Text>
+          <Text style={styles.pageTitle}>What's on your mind?</Text>
+          <Text style={styles.pageSubtitle}>Say it or type it to capture it instantly!</Text>
 
           <View style={styles.segmentedControl}>
             <TouchableOpacity
@@ -161,7 +161,8 @@ export default function AddNote() {
                   setTextInput(t);
                   setHomeError(null);
                 }}
-                placeholder="e.g. Buy groceries tomorrow at 10am. I want to learn React hooks."
+                placeholder="e.g. Buy groceries tomorrow at 10am.
+                 I want to learn React hooks."
                 placeholderTextColor={StickiesColors.inkLight}
                 multiline
                 numberOfLines={4}

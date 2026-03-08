@@ -5,6 +5,13 @@ import { Platform } from 'react-native';
 import { useAuth } from '../../src/hooks/useAuth';
 import { StickiesColors } from '../../src/theme/stickies';
 import { generateLearningTasks } from '../../src/api/client';
+import { OnboardingProvider, useOnboarding } from '../../src/contexts/OnboardingContext';
+import { OnboardingTour } from '../../src/components/OnboardingTour';
+
+function OnboardingTourGate() {
+  const { shouldShowTour } = useOnboarding();
+  return shouldShowTour ? <OnboardingTour visible onDismiss={() => {}} /> : null;
+}
 
 export default function TabsLayout() {
   const { userId } = useAuth();
@@ -22,7 +29,8 @@ export default function TabsLayout() {
   }, [userId]);
 
   return (
-    <Tabs
+    <OnboardingProvider>
+      <Tabs
       screenOptions={{
         tabBarActiveTintColor: StickiesColors.success,
         tabBarInactiveTintColor: StickiesColors.inkLight,
@@ -138,5 +146,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+      <OnboardingTourGate />
+    </OnboardingProvider>
   );
 }

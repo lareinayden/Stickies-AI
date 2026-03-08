@@ -599,7 +599,8 @@ export default function Home() {
                 Stickies AI
               </h1>
               <p className="text-gray-600 mb-8">
-                Add tasks or learning areas by voice or by typing
+                {/* Add tasks or learning areas by voice or by typing */}
+                What's on your mind?
               </p>
             </div>
             <div className="flex items-center gap-4">
