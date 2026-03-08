@@ -38,20 +38,32 @@ export async function GET(request: NextRequest) {
 
     const highlights = [];
 
-    highlights.push({
-      id: 'best-day',
-      type: 'best_day',
-      title: 'Highest effort day',
-      description: 'Your most focused day in the last month.',
-      date: bestDay.date.toISOString().slice(0, 10),
-      effortScore: bestDay.effort_score,
-    });
+    const bestDayScore = bestDay.effort_score;
+    if (bestDayScore > 0) {
+      const dateStr = bestDay.date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      highlights.push({
+        id: 'best-day',
+        type: 'best_day',
+        title: 'Highest effort day (last 30 days)',
+        description: `${dateStr} — effort score ${bestDayScore.toFixed(1)}`,
+        date: bestDay.date.toISOString().slice(0, 10),
+        effortScore: bestDay.effort_score,
+        tasksCompleted: bestDay.tasks_completed ?? 0,
+        reviewsCompleted: bestDay.reviews_completed ?? 0,
+      });
+    }
 
+    const activeDaysPct =
+      stats.length > 0 ? Math.round((100 * activeDays) / stats.length) : 0;
     highlights.push({
       id: 'consistency',
       type: 'consistency',
-      title: 'Consistent effort',
-      description: 'Days where you showed up and made progress.',
+      title: 'Active days (last 30)',
+      description: `${activeDays} of ${stats.length} days with activity (${activeDaysPct}%).`,
       activeDays,
       totalDays: stats.length,
     });

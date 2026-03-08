@@ -270,20 +270,30 @@ export default function RewardsScreen() {
 
       <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardPast, StickiesColors.taskCardPastBorder)]}>
         <Text style={styles.cardTitle}>Highlights</Text>
-        {highlights.length === 0 ? (
-          <Text style={styles.cardBody}>Highlights will show up once you have more activity.</Text>
-        ) : (
-          <View style={styles.highlightList}>
-            {highlights.slice(0, 3).map((h, idx) => (
-              <View key={String(h.id ?? idx)} style={styles.highlightItem}>
-                <Text style={styles.highlightTitle}>{String(h.title ?? 'Highlight')}</Text>
-                {h.description ? (
-                  <Text style={styles.highlightBody}>{String(h.description)}</Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        )}
+        {(() => {
+          const bestDayOnly = highlights.filter((h) => h.type === 'best_day' || h.id === 'best-day');
+          if (bestDayOnly.length === 0) {
+            return <Text style={styles.cardBody}>Highlights will show up once you have more activity.</Text>;
+          }
+          return (
+            <View style={styles.highlightList}>
+              {bestDayOnly.map((h, idx) => {
+                const dateStr = h.date ? new Date(String(h.date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                const tasks = typeof h.tasksCompleted === 'number' ? h.tasksCompleted : 0;
+                const stickies = typeof h.reviewsCompleted === 'number' ? h.reviewsCompleted : 0;
+                const desc = dateStr
+                  ? `You completed ${tasks} tasks and learned ${stickies} stickies on ${dateStr}. Great job!`
+                  : String(h.description ?? '');
+                return (
+                  <View key={String(h.id ?? idx)} style={styles.highlightItem}>
+                    <Text style={styles.highlightTitle}>{String(h.title ?? 'Highlight')}</Text>
+                    <Text style={styles.highlightBody}>{desc}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })()}
       </View>
 
       <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardUpcoming, StickiesColors.taskCardUpcomingBorder)]}>

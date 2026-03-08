@@ -141,24 +141,37 @@ export default async function RewardsPage() {
   const highlights: Highlight[] =
     statsRows.length === 0
       ? []
-      : ([
-          {
-            id: 'best-day',
-            type: 'best_day',
-            title: 'Highest effort day',
-            description: 'Your most focused day in the last month.',
-            date: toYyyyMmDd(bestDay!.date),
-            effortScore: bestDay!.effort_score,
-          },
-          {
+      : (() => {
+          const items: Highlight[] = [];
+          if (bestDay && bestDay.effort_score > 0) {
+            const dateStr = bestDay.date.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            });
+            items.push({
+              id: 'best-day',
+              type: 'best_day',
+              title: 'Highest effort day (last 30 days)',
+              description: `${dateStr} — effort score ${bestDay.effort_score.toFixed(1)}`,
+              date: toYyyyMmDd(bestDay.date),
+              effortScore: bestDay.effort_score,
+            });
+          }
+          const activeDaysPct =
+            statsRows.length > 0
+              ? Math.round((100 * activeDays) / statsRows.length)
+              : 0;
+          items.push({
             id: 'consistency',
             type: 'consistency',
-            title: 'Consistent effort',
-            description: 'Days where you showed up and made progress.',
+            title: 'Active days (last 30)',
+            description: `${activeDays} of ${statsRows.length} days with activity (${activeDaysPct}%).`,
             activeDays,
             totalDays: statsRows.length,
-          },
-        ] as Highlight[]);
+          });
+          return items;
+        })();
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 p-6">
