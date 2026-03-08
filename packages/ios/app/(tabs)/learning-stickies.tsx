@@ -15,6 +15,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlipCard } from '../../src/components/FlipCard';
 import { Swipeable } from '../../src/components/Swipeable';
@@ -33,14 +34,13 @@ import { hapticFeedback } from '../../src/utils/haptics';
 import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { LearningSticky } from '../../src/types';
 
-const USER_KEY = 'stickies_user_id';
 const PROGRESS_KEY_PREFIX = 'learningStickyProgress:';
 
 type StickyReviewStatus = 'needs_review' | 'learned';
 type StickyProgressMap = Record<string, StickyReviewStatus>;
 
 export default function LearningStickiesScreen() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { userId } = useAuth();
   const [areas, setAreas] = useState<Array<{ domain: string; count: number }>>([]);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [areaStickies, setAreaStickies] = useState<LearningSticky[]>([]);
@@ -60,13 +60,11 @@ export default function LearningStickiesScreen() {
   }, [selectedDomain, navigation]);
 
   const loadDomains = useCallback(async () => {
-    const uid = await AsyncStorage.getItem(USER_KEY);
-    setUserId(uid);
-    if (!uid) return;
+    if (!userId) return;
 
     // Load per-sticky progress state once we know the user.
     try {
-      const raw = await AsyncStorage.getItem(`${PROGRESS_KEY_PREFIX}${uid}`);
+      const raw = await AsyncStorage.getItem(`${PROGRESS_KEY_PREFIX}${userId}`);
       const parsed = raw ? (JSON.parse(raw) as StickyProgressMap) : {};
       setStatusById(parsed ?? {});
     } catch (_) {
@@ -77,8 +75,8 @@ export default function LearningStickiesScreen() {
     setLoading(true);
     try {
       const [{ domains }, settingsResult] = await Promise.all([
-        getLearningStickiesDomains(uid),
-        getLearningTaskSettings(uid).catch(() => ({ settings: [] })),
+        getLearningStickiesDomains(userId),
+        getLearningTaskSettings(userId).catch(() => ({ settings: [] })),
       ]);
       setAreas(domains);
       const freq: Record<string, number> = {};
@@ -90,7 +88,7 @@ export default function LearningStickiesScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   const setStickyStatus = useCallback(
     async (sticky: LearningSticky, status: StickyReviewStatus) => {

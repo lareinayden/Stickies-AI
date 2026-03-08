@@ -1,19 +1,20 @@
 /**
- * API client for Stickies AI web backend
- * Uses X-User-Id for auth (mock users).
+ * API client for Stickies AI web backend.
+ * Sends Authorization: Bearer <Supabase JWT> when logged in; X-User-Id for fallback.
  */
 
 import type { LearningSticky } from '../types';
+import { supabase } from '../lib/supabase';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
-function headers(userId: string, contentType?: string): Record<string, string> {
-  const h: Record<string, string> = {
-    'X-User-Id': userId,
-  };
-  if (contentType) {
-    h['Content-Type'] = contentType;
+async function getAuthHeaders(userId: string, contentType?: string): Promise<Record<string, string>> {
+  const h: Record<string, string> = { 'X-User-Id': userId };
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`;
   }
+  if (contentType) h['Content-Type'] = contentType;
   return h;
 }
 
@@ -24,7 +25,7 @@ export async function trackEvent(
 ): Promise<{ id: string; eventType: string; occurredAt: string }> {
   const res = await fetch(`${BASE_URL}/api/events`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify({
       event_type: eventType,
       metadata: metadata ?? null,
@@ -65,7 +66,7 @@ export async function getRewardsDailyStats(
   stats: Array<{ date: string; effortScore: number; tasksCompleted: number; reviewsCompleted: number }>;
 }> {
   const res = await fetch(`${BASE_URL}/api/rewards/daily-stats?days=${encodeURIComponent(String(days))}`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     days?: number;
@@ -89,7 +90,7 @@ export async function getRewardsWeeklyReport(
   bestDay: { date: string; effortScore: number } | null;
 }> {
   const res = await fetch(`${BASE_URL}/api/rewards/weekly-report`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     startDate?: string;
@@ -119,7 +120,7 @@ export async function getRewardsHighlights(
   userId: string
 ): Promise<{ highlights: Array<Record<string, unknown>> }> {
   const res = await fetch(`${BASE_URL}/api/rewards/highlights`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as { highlights?: Array<Record<string, unknown>>; error?: string };
   if (!res.ok) throw new Error(json.error || `Get rewards highlights failed: ${res.status}`);
@@ -141,7 +142,7 @@ export async function getRewardsUnlocks(
   }>;
 }> {
   const res = await fetch(`${BASE_URL}/api/rewards/unlocks`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     unlocks?: Array<{
@@ -173,7 +174,7 @@ export async function getRewardsProductivity(userId: string): Promise<{
   activityByHour?: Array<{ hour: number; count: number }>;
 }> {
   const res = await fetch(`${BASE_URL}/api/rewards/productivity`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     peakWindow?: {
@@ -212,9 +213,7 @@ export async function uploadVoice(
 
   const res = await fetch(`${BASE_URL}/api/voice/upload`, {
     method: 'POST',
-    headers: {
-      'X-User-Id': userId,
-    },
+    headers: await getAuthHeaders(userId),
     body: formData,
   });
 
@@ -242,7 +241,7 @@ export async function getStatus(
 ): Promise<{ status: string }> {
   const res = await fetch(
     `${BASE_URL}/api/voice/status/${encodeURIComponent(ingestionId)}`,
-    { headers: headers(userId) }
+    { headers: await getAuthHeaders(userId) }
   );
   const json = (await res.json()) as { status?: string; error?: string };
   if (!res.ok) throw new Error(json.error || `Status failed: ${res.status}`);
@@ -260,7 +259,7 @@ export async function getTranscript(
 }> {
   const res = await fetch(
     `${BASE_URL}/api/voice/transcript/${encodeURIComponent(ingestionId)}`,
-    { headers: headers(userId) }
+    { headers: await getAuthHeaders(userId) }
   );
   const json = (await res.json()) as {
     status?: string;
@@ -302,7 +301,7 @@ export async function summarizeTranscript(
     `${BASE_URL}/api/voice/summarize/${encodeURIComponent(ingestionId)}`,
     {
       method: 'POST',
-      headers: headers(userId, 'application/json'),
+      headers: await getAuthHeaders(userId, 'application/json'),
     }
   );
   const json = (await res.json()) as {
@@ -346,7 +345,7 @@ export async function getTasks(userId: string): Promise<{
   count: number;
 }> {
   const res = await fetch(`${BASE_URL}/api/tasks`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     tasks?: Array<{
@@ -389,7 +388,7 @@ export async function createTasksFromText(
 }> {
   const res = await fetch(`${BASE_URL}/api/tasks/from-text`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify({ text: text.trim() }),
   });
   const json = (await res.json()) as {
@@ -427,7 +426,7 @@ export async function updateTask(
     `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
     {
       method: 'PATCH',
-      headers: headers(userId, 'application/json'),
+      headers: await getAuthHeaders(userId, 'application/json'),
       body: JSON.stringify(patch),
     }
   );
@@ -474,7 +473,7 @@ export async function patchTask(
     `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
     {
       method: 'PATCH',
-      headers: headers(userId, 'application/json'),
+      headers: await getAuthHeaders(userId, 'application/json'),
       body: JSON.stringify(patch),
     }
   );
@@ -510,7 +509,7 @@ export async function deleteTask(
     `${BASE_URL}/api/task/${encodeURIComponent(taskId)}`,
     {
       method: 'DELETE',
-      headers: headers(userId),
+      headers: await getAuthHeaders(userId),
     }
   );
   if (!res.ok) {
@@ -529,7 +528,7 @@ export async function getLearningStickies(
   if (params?.offset) search.set('offset', String(params.offset));
   const qs = search.toString();
   const url = `${BASE_URL}/api/learning-stickies${qs ? `?${qs}` : ''}`;
-  const res = await fetch(url, { headers: headers(userId) });
+  const res = await fetch(url, { headers: await getAuthHeaders(userId) });
   const json = (await res.json()) as {
     learningStickies?: LearningSticky[];
     count?: number;
@@ -548,7 +547,7 @@ export async function getLearningStickiesDomains(
   userId: string
 ): Promise<{ domains: Array<{ domain: string; count: number }> }> {
   const res = await fetch(`${BASE_URL}/api/learning-stickies/domains`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     domains?: Array<{ domain: string; count: number }>;
@@ -564,7 +563,7 @@ export async function deleteLearningSticky(
 ): Promise<void> {
   const res = await fetch(
     `${BASE_URL}/api/learning-stickies?id=${encodeURIComponent(id)}`,
-    { method: 'DELETE', headers: headers(userId) }
+    { method: 'DELETE', headers: await getAuthHeaders(userId) }
   );
   if (!res.ok) {
     const json = (await res.json()) as { error?: string };
@@ -578,7 +577,7 @@ export async function deleteLearningStickiesByDomain(
 ): Promise<{ count: number }> {
   const res = await fetch(
     `${BASE_URL}/api/learning-stickies?domain=${encodeURIComponent(domain)}`,
-    { method: 'DELETE', headers: headers(userId) }
+    { method: 'DELETE', headers: await getAuthHeaders(userId) }
   );
   const json = (await res.json()) as { count?: number; error?: string };
   if (!res.ok) throw new Error(json.error || `Delete failed: ${res.status}`);
@@ -598,7 +597,7 @@ export async function generateLearningStickies(
   if (refine?.trim()) body.refine = refine.trim();
   const res = await fetch(`${BASE_URL}/api/learning-stickies/generate`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as {
@@ -621,7 +620,7 @@ export async function getLearningTaskSettings(
   settings: Array<{ id: string; domain: string; frequencyDays: number; lastGeneratedAt: string | null; createdAt: string }>;
 }> {
   const res = await fetch(`${BASE_URL}/api/learning-task-settings`, {
-    headers: headers(userId),
+    headers: await getAuthHeaders(userId),
   });
   const json = (await res.json()) as {
     settings?: Array<{ id: string; domain: string; frequencyDays: number; lastGeneratedAt: string | null; createdAt: string }>;
@@ -638,7 +637,7 @@ export async function upsertLearningTaskSetting(
 ): Promise<{ id: string; domain: string; frequencyDays: number }> {
   const res = await fetch(`${BASE_URL}/api/learning-task-settings`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify({ domain, frequencyDays }),
   });
   const json = (await res.json()) as {
@@ -657,7 +656,7 @@ export async function generateLearningTasks(
 }> {
   const res = await fetch(`${BASE_URL}/api/learning-tasks/generate`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: await getAuthHeaders(userId, 'application/json'),
   });
   const json = (await res.json()) as {
     generatedTasks?: Array<{ id: string; title: string; type: string; priority: string | null; dueDate: string | null; createdAt: string }>;
@@ -679,7 +678,7 @@ export async function createImmediateLearningTask(
 ): Promise<{ id: string; title: string; dueDate: string | null }> {
   const res = await fetch(`${BASE_URL}/api/learning-tasks/now`, {
     method: 'POST',
-    headers: headers(userId, 'application/json'),
+    headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify({ domain }),
   });
   const json = (await res.json()) as {

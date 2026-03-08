@@ -6,91 +6,161 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MOCK_USERS } from '../src/types';
-import { login } from '../src/api/client';
+import { supabase } from '../src/lib/supabase';
 import { StickyCard } from '../src/components/StickyCard';
 import { StickiesColors } from '../src/theme/stickies';
 
-const USER_KEY = 'stickies_user_id';
-const BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
-
-const STICKY_COLORS = [StickiesColors.yellow, StickiesColors.pink, StickiesColors.blue];
-
 export default function Login() {
   const router = useRouter();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleLogin = async () => {
-    if (!selected) return;
+  const handleSubmit = async () => {
+    if (!supabase) {
+      setError('Supabase not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+      return;
+    }
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+    setError(null);
+    setSuccess(null);
     setLoading(true);
     try {
-      const { success } = await login(BASE, selected);
-      if (!success) {
-        await AsyncStorage.setItem(USER_KEY, selected);
-        router.replace('/(tabs)');
-        return;
+      if (isSignUp) {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password,
+          options: displayName.trim() ? { data: { display_name: displayName.trim() } } : undefined,
+        });
+        if (signUpError) {
+          setError(signUpError.message);
+          setLoading(false);
+          return;
+        }
+        if (data.session) {
+          router.replace('/(tabs)');
+          return;
+        }
+        setSuccess('Check your email to confirm your account.');
+      } else {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        });
+        if (signInError) {
+          setError(signInError.message);
+          setLoading(false);
+          return;
+        }
+        if (data.session) {
+          router.replace('/(tabs)');
+          return;
+        }
       }
-      await AsyncStorage.setItem(USER_KEY, selected);
-      router.replace('/(tabs)');
-    } catch {
-      await AsyncStorage.setItem(USER_KEY, selected);
-      router.replace('/(tabs)');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topSpacer} />
-      <View style={styles.hero}>
-        <Text style={styles.emoji}>🎤</Text>
-        <Text style={styles.title}>Stickies AI</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView
-        style={styles.bottomSection}
-        contentContainerStyle={styles.formContent}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.subtitle}>Select an account</Text>
+        <View style={styles.hero}>
+          <Text style={styles.emoji}>🎤</Text>
+          <Text style={styles.title}>Stickies AI</Text>
+        </View>
+        <Text style={styles.subtitle}>
+          {isSignUp ? 'Create an account' : 'Sign in to continue'}
+        </Text>
 
-        {MOCK_USERS.map((u, i) => (
+        <StickyCard backgroundColor={StickiesColors.gray} softShadow style={styles.formCard}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor={StickiesColors.inkMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            editable={!loading}
+          />
+          {isSignUp && (
+            <>
+              <Text style={[styles.label, { marginTop: 12 }]}>Display name (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder="Your name"
+                placeholderTextColor={StickiesColors.inkMuted}
+                editable={!loading}
+              />
+            </>
+          )}
+          <Text style={[styles.label, { marginTop: isSignUp ? 12 : 12 }]}>Password</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="••••••••"
+            placeholderTextColor={StickiesColors.inkMuted}
+            secureTextEntry
+            editable={!loading}
+          />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {success ? <Text style={styles.successText}>{success}</Text> : null}
           <TouchableOpacity
-            key={u.id}
-            onPress={() => setSelected(u.id)}
-            style={styles.userBtnWrap}
-            activeOpacity={0.85}
+            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
           >
-            <StickyCard
-              backgroundColor={STICKY_COLORS[i % STICKY_COLORS.length]}
-              softShadow
-              style={[styles.userSticky, selected === u.id && styles.userStickySelected]}
-            >
-              <Text style={styles.userName}>{u.displayName}</Text>
-              <Text style={styles.userId}>@{u.username}</Text>
+            <StickyCard backgroundColor={StickiesColors.green} softShadow style={styles.submitSticky}>
+              {loading ? (
+                <ActivityIndicator color={StickiesColors.ink} />
+              ) : (
+                <Text style={styles.submitText}>{isSignUp ? 'Sign up' : 'Sign in'}</Text>
+              )}
             </StickyCard>
           </TouchableOpacity>
-        ))}
+        </StickyCard>
 
         <TouchableOpacity
-          style={[styles.continueWrap, (!selected || loading) && styles.continueDisabled]}
-          onPress={handleLogin}
-          disabled={!selected || loading}
+          style={styles.switchMode}
+          onPress={() => {
+            setIsSignUp(!isSignUp);
+            setError(null);
+            setSuccess(null);
+          }}
         >
-          <StickyCard backgroundColor={StickiesColors.green} softShadow style={styles.continueSticky}>
-            {loading ? (
-              <ActivityIndicator color={StickiesColors.ink} />
-            ) : (
-              <Text style={styles.continueText}>Continue</Text>
-            )}
-          </StickyCard>
+          <Text style={styles.switchModeText}>
+            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -99,12 +169,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: StickiesColors.desk,
   },
-  topSpacer: {
-    flex: 1,
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 48,
   },
   hero: {
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 48,
+    marginBottom: 24,
   },
   emoji: {
     fontSize: 56,
@@ -115,51 +187,60 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: StickiesColors.ink,
   },
-  bottomSection: {
-    flex: 1,
-  },
-  formContent: {
-    padding: 24,
-    paddingBottom: 48,
-  },
   subtitle: {
     fontSize: 16,
     color: StickiesColors.inkMuted,
     marginBottom: 20,
   },
-  userBtnWrap: {
-    marginBottom: 12,
+  formCard: {
+    padding: 18,
+    marginBottom: 16,
   },
-  userSticky: {
-    padding: 16,
-  },
-  userStickySelected: {
-    borderWidth: 2,
-    borderColor: StickiesColors.ink,
-  },
-  userName: {
-    fontSize: 17,
+  label: {
+    fontSize: 14,
     fontWeight: '600',
     color: StickiesColors.ink,
+    marginBottom: 6,
   },
-  userId: {
+  input: {
+    borderWidth: 1,
+    borderColor: StickiesColors.grayDark,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    color: StickiesColors.ink,
+  },
+  errorText: {
     fontSize: 14,
-    color: StickiesColors.inkMuted,
-    marginTop: 2,
+    color: '#b91c1c',
+    marginTop: 12,
   },
-  continueWrap: {
-    marginTop: 28,
+  successText: {
+    fontSize: 14,
+    color: StickiesColors.success,
+    marginTop: 12,
   },
-  continueDisabled: {
-    opacity: 0.6,
+  submitBtn: {
+    marginTop: 20,
   },
-  continueSticky: {
+  submitBtnDisabled: {
+    opacity: 0.7,
+  },
+  submitSticky: {
     padding: 16,
     alignItems: 'center',
   },
-  continueText: {
+  submitText: {
     color: StickiesColors.ink,
     fontSize: 17,
     fontWeight: '600',
+  },
+  switchMode: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  switchModeText: {
+    fontSize: 15,
+    color: StickiesColors.inkMuted,
   },
 });

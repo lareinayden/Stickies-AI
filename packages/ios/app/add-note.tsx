@@ -16,7 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../src/hooks/useAuth';
 import { VoiceRecorder } from '../src/components/VoiceRecorder';
 import { useVoiceUpload } from '../src/hooks/useVoiceUpload';
 import {
@@ -41,13 +41,11 @@ const cardStyle = (bg: string, borderColor: string) => ({
   elevation: 2,
 });
 
-const USER_KEY = 'stickies_user_id';
-
 type InputMode = 'voice' | 'type';
 
 export default function AddNote() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { userId } = useAuth();
   const [inputMode, setInputMode] = useState<InputMode>('voice');
   const [textInput, setTextInput] = useState('');
   const [processingTasks, setProcessingTasks] = useState(false);
@@ -66,10 +64,6 @@ export default function AddNote() {
     reset,
     extractTasksFromVoice,
   } = useVoiceUpload(userId);
-
-  useEffect(() => {
-    AsyncStorage.getItem(USER_KEY).then(setUserId);
-  }, []);
 
   const content = inputMode === 'voice' ? (transcript ?? '') : textInput.trim();
   const hasContent = content.length > 0;

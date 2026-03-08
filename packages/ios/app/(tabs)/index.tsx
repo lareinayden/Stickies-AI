@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../src/hooks/useAuth';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -27,8 +27,6 @@ import { StickiesColors, TypographyRounded, Spacing } from '../../src/theme/stic
 import { hapticFeedback } from '../../src/utils/haptics';
 import type { Task } from '../../src/types';
 import type { LearningSticky } from '../../src/types';
-
-const USER_KEY = 'stickies_user_id';
 
 export type FeedItem =
   | { type: 'task'; id: string; createdAt: string; data: Task }
@@ -41,7 +39,7 @@ function feedItemId(item: FeedItem): string {
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { userId } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,10 +77,6 @@ export default function Home() {
       setRefreshing(false);
     }
   }, [userId]);
-
-  useEffect(() => {
-    AsyncStorage.getItem(USER_KEY).then(setUserId);
-  }, []);
 
   useEffect(() => {
     if (userId) loadFeed();

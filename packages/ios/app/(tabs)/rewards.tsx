@@ -8,7 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../src/hooks/useAuth';
 import {
   getRewardsDailyStats,
   getRewardsWeeklyReport,
@@ -34,8 +34,6 @@ const cardStyle = (bg: string, borderColor: string) => ({
   shadowRadius: 4,
   elevation: 2,
 });
-
-const USER_KEY = 'stickies_user_id';
 
 type DailyStat = {
   date: string; // YYYY-MM-DD
@@ -90,7 +88,7 @@ function badgeTierColor(tier: 'bronze' | 'silver' | 'gold'): string {
 }
 
 export default function RewardsScreen() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { userId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,19 +111,16 @@ export default function RewardsScreen() {
   const [insight, setInsight] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const uid = await AsyncStorage.getItem(USER_KEY);
-    setUserId(uid);
-    if (!uid) return;
-
+    if (!userId) return;
     setError(null);
     setLoading(true);
     try {
       const [dailyRes, weeklyRes, highlightsRes, unlocksRes, productivityRes] = await Promise.all([
-        getRewardsDailyStats(uid, 30),
-        getRewardsWeeklyReport(uid),
-        getRewardsHighlights(uid),
-        getRewardsUnlocks(uid),
-        getRewardsProductivity(uid),
+        getRewardsDailyStats(userId, 30),
+        getRewardsWeeklyReport(userId),
+        getRewardsHighlights(userId),
+        getRewardsUnlocks(userId),
+        getRewardsProductivity(userId),
       ]);
       setDaily(dailyRes.stats);
       setWeekly(weeklyRes);
@@ -137,7 +132,7 @@ export default function RewardsScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     load();

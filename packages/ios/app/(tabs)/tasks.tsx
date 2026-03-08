@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../src/hooks/useAuth';
 import { TaskCard } from '../../src/components/TaskCard';
 import { StickyCard } from '../../src/components/StickyCard';
 import { Swipeable } from '../../src/components/Swipeable';
@@ -22,10 +22,8 @@ import { hapticFeedback } from '../../src/utils/haptics';
 import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { Task } from '../../src/types';
 
-const USER_KEY = 'stickies_user_id';
-
 export default function Tasks() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { userId } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -104,13 +102,11 @@ export default function Tasks() {
   }, [tasks]);
 
   const load = useCallback(async () => {
-    const uid = await AsyncStorage.getItem(USER_KEY);
-    setUserId(uid);
-    if (!uid) return;
+    if (!userId) return;
     setFetchError(null);
     setLoading(true);
     try {
-      const { tasks: list } = await getTasks(uid);
+      const { tasks: list } = await getTasks(userId);
       setTasks(list ?? []);
     } catch (e) {
       setTasks([]);

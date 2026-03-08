@@ -5,6 +5,12 @@ import { useRouter } from 'next/navigation';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { getCurrentUserId, clearSession } from '@/lib/auth/session';
 import { getUserById, type TestUser } from '@/lib/auth/users';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+
+// Minimal user shape for Supabase users (no mock entry)
+function supabaseUser(userId: string): TestUser {
+  return { id: userId, username: userId, displayName: 'User' };
+}
 
 interface UploadResponse {
   ingestionId: string;
@@ -134,18 +140,22 @@ export default function Home() {
       router.push('/login');
       return;
     }
-    
-    const user = getUserById(userId);
+    const user = getUserById(userId) ?? (userId.length === 36 && userId.includes('-') ? supabaseUser(userId) : null);
     if (!user) {
       clearSession();
       router.push('/login');
       return;
     }
-    
     setCurrentUser(user);
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      createSupabaseBrowserClient().auth.signOut();
+    } catch (_) {
+      // ignore
+    }
     clearSession();
     router.push('/login');
   };

@@ -18,6 +18,8 @@
     "db:migrate": "tsx src/lib/db/migrate.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.47.10",
     "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -1,118 +1,163 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { getAllUsers, type TestUser } from '@/lib/auth/users';
-import { setCurrentUserId, getCurrentUserId } from '@/lib/auth/session';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { setCurrentUserId } from '@/lib/auth/session';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [users] = useState<TestUser[]>(getAllUsers());
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
-    // If already logged in, redirect to home
-    const currentUserId = getCurrentUserId();
-    if (currentUserId) {
-      router.push('/');
+    const error = searchParams.get('error');
+    if (error === 'auth_callback_error') {
+      setMessage({ type: 'error', text: 'Authentication failed. Please try again.' });
     }
-  }, [router]);
+  }, [searchParams]);
 
-  const handleLogin = async () => {
-    if (!selectedUserId) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    if (!email.trim() || !password) {
+      setMessage({ type: 'error', text: 'Email and password are required.' });
       return;
     }
-
-    setIsLoading(true);
+    setLoading(true);
     try {
-      // Set user session on client (localStorage)
-      setCurrentUserId(selectedUserId);
-
-      // Set user session on server (cookie)
-      const response = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: selectedUserId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to set session');
+      const supabase = createSupabaseBrowserClient();
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: displayName.trim() ? { data: { display_name: displayName.trim() } } : undefined,
+        });
+        if (error) {
+          setMessage({ type: 'error', text: error.message });
+          setLoading(false);
+          return;
+        }
+        if (data.session) {
+          // Set server cookie so API routes see the user
+          await fetch('/api/auth/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: data.user?.id }) });
+          if (data.user?.id) setCurrentUserId(data.user.id);
+          router.push('/');
+          return;
+        }
+        setMessage({ type: 'success', text: 'Check your email to confirm your account.' });
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) {
+          setMessage({ type: 'error', text: error.message });
+          setLoading(false);
+          return;
+        }
+        if (data.user?.id) {
+          await fetch('/api/auth/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: data.user.id }) });
+          setCurrentUserId(data.user.id);
+          router.push('/');
+          return;
+        }
       }
-
-      // Redirect to home page
-      router.push('/');
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('Failed to login. Please try again.');
-      setIsLoading(false);
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Something went wrong.' });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          🎤 Stickies AI
-        </h1>
-        <p className="text-gray-600 mb-8">
-          Select an account to continue
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">🎤 Stickies AI</h1>
+        <p className="text-gray-600 mb-6">
+          {isSignUp ? 'Create an account' : 'Sign in to continue'}
         </p>
 
-        <div className="space-y-4">
-          {users.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => setSelectedUserId(user.id)}
-              className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                selectedUserId === user.id
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    {user.displayName}
-                  </p>
-                  <p className="text-sm text-gray-500">@{user.username}</p>
-                </div>
-                {selectedUserId === user.id && (
-                  <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="you@example.com"
+            />
+          </div>
+          {isSignUp && (
+            <div>
+              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+                Display name (optional)
+              </label>
+              <input
+                id="displayName"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Your name"
+              />
+            </div>
+          )}
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="••••••••"
+            />
+          </div>
+          {message && (
+            <p className={`text-sm ${message.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+              {message.text}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-4 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'Please wait...' : isSignUp ? 'Sign up' : 'Sign in'}
+          </button>
+        </form>
 
-        <button
-          onClick={handleLogin}
-          disabled={!selectedUserId || isLoading}
-          className="w-full mt-6 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading ? 'Logging in...' : 'Continue'}
-        </button>
-
+        <p className="mt-6 text-center text-sm text-gray-600">
+          {isSignUp ? (
+            <>
+              Already have an account?{' '}
+              <button type="button" onClick={() => { setIsSignUp(false); setMessage(null); }} className="text-blue-600 font-medium hover:underline">
+                Sign in
+              </button>
+            </>
+          ) : (
+            <>
+              Don&apos;t have an account?{' '}
+              <button type="button" onClick={() => { setIsSignUp(true); setMessage(null); }} className="text-blue-600 font-medium hover:underline">
+                Sign up
+              </button>
+            </>
+          )}
+        </p>
         <p className="mt-4 text-xs text-gray-500 text-center">
-          This is a mock authentication system for testing.
-          <br />
-          Real authentication will be implemented in Option 2.
+          <Link href="/" className="hover:underline">Back to home</Link>
         </p>
       </div>
     </main>
