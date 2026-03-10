@@ -128,7 +128,12 @@ export default function RewardsScreen() {
       setUnlocks(unlocksRes.unlocks);
       setInsight(productivityRes.insight ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load rewards');
+      const raw = e instanceof Error ? e.message : 'Could not load rewards';
+      const friendly =
+        /JSON|Parse|Unexpected character|Could not load|failed:|fetch/i.test(raw)
+          ? 'Your rewards will show up here once you complete tasks or review learning stickies. Pull down to refresh.'
+          : raw;
+      setError(friendly);
     } finally {
       setLoading(false);
     }
@@ -187,7 +192,7 @@ export default function RewardsScreen() {
     >
       {error ? (
         <View style={[styles.cardWrap, cardStyle(StickiesColors.taskCardPast, StickiesColors.taskCardPastBorder)]}>
-          <Text style={styles.cardTitle}>Could not load</Text>
+          <Text style={styles.cardTitle}>Getting started</Text>
           <Text style={styles.cardBody}>{error}</Text>
         </View>
       ) : null}

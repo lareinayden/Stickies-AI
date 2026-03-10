@@ -167,7 +167,12 @@ export function useVoiceUpload(userId: string | null) {
         }))
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to extract tasks');
+      const raw = e instanceof Error ? e.message : 'Failed to extract tasks';
+      const friendly =
+        /JSON|Parse|Unexpected character|Could not load|failed:|fetch/i.test(raw)
+          ? "We couldn't extract tasks right now. Please check your connection and try again."
+          : raw;
+      setError(friendly);
     } finally {
       setPhase('done');
     }

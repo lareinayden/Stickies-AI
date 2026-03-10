@@ -34,6 +34,15 @@ import { hapticFeedback } from '../../src/utils/haptics';
 import { triggerRewardsRefresh } from '../../src/utils/rewards-refresh';
 import type { LearningSticky } from '../../src/types';
 
+function friendlyLoadError(raw: string, forAreas: boolean): string {
+  if (/JSON|Parse|Unexpected character|Could not load|failed:|fetch/i.test(raw)) {
+    return forAreas
+      ? "Your learning areas will show up here once they're synced. Pull down to refresh."
+      : "Stickies for this area will show up once loaded. Pull down to retry.";
+  }
+  return raw;
+}
+
 const PROGRESS_KEY_PREFIX = 'learningStickyProgress:';
 
 type StickyReviewStatus = 'needs_review' | 'learned';
@@ -84,7 +93,8 @@ export default function LearningStickiesScreen() {
       setReviewFrequency(freq);
     } catch (e) {
       setAreas([]);
-      setFetchError(e instanceof Error ? e.message : 'Could not load areas');
+      const raw = e instanceof Error ? e.message : 'Could not load areas';
+      setFetchError(friendlyLoadError(raw, true));
     } finally {
       setLoading(false);
     }
@@ -125,7 +135,8 @@ export default function LearningStickiesScreen() {
       setAreaStickies(learningStickies);
     } catch (e) {
       setAreaStickies([]);
-      setFetchError(e instanceof Error ? e.message : 'Could not load stickies');
+      const raw = e instanceof Error ? e.message : 'Could not load stickies';
+      setFetchError(friendlyLoadError(raw, false));
     } finally {
       setLoading(false);
     }
@@ -296,7 +307,7 @@ export default function LearningStickiesScreen() {
           {fetchError && areaStickies.length === 0 ? (
             <View style={styles.centeredList}>
               <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardPast, borderBottomColor: StickiesColors.taskCardPastBorder }]}>
-                <Text style={styles.errorTitle}>Could not load stickies</Text>
+                <Text style={styles.errorTitle}>Getting started</Text>
                 <Text style={styles.empty}>{fetchError}</Text>
                 <Text style={styles.hint}>Pull down to retry.</Text>
               </View>
@@ -441,7 +452,7 @@ export default function LearningStickiesScreen() {
           {fetchError && areas.length === 0 ? (
             <View style={styles.centeredList}>
               <View style={[styles.emptyCard, { backgroundColor: StickiesColors.taskCardPast, borderBottomColor: StickiesColors.taskCardPastBorder }]}>
-                <Text style={styles.errorTitle}>Could not load areas</Text>
+                <Text style={styles.errorTitle}>Getting started</Text>
                 <Text style={styles.empty}>{fetchError}</Text>
                 <Text style={styles.hint}>Pull down to retry.</Text>
               </View>

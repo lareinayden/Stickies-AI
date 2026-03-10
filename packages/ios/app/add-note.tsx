@@ -84,7 +84,12 @@ export default function AddNote() {
       router.back();
       router.push('/(tabs)/tasks');
     } catch (e) {
-      setHomeError(e instanceof Error ? e.message : 'Failed to extract tasks');
+      const raw = e instanceof Error ? e.message : 'Failed to extract tasks';
+      const friendly =
+        /JSON|Parse|Unexpected character|Could not load|failed:|fetch/i.test(raw)
+          ? "We couldn't extract tasks right now. Please check your connection and try again."
+          : raw;
+      setHomeError(friendly);
     } finally {
       setProcessingTasks(false);
     }
@@ -100,7 +105,12 @@ export default function AddNote() {
       router.back();
       router.push('/(tabs)/learning-stickies');
     } catch (e) {
-      setHomeError(e instanceof Error ? e.message : 'Failed to create learning area');
+      const raw = e instanceof Error ? e.message : 'Failed to create learning area';
+      const friendly =
+        /JSON|Parse|Unexpected character|Could not load|failed:|fetch/i.test(raw)
+          ? "We couldn't create the learning area right now. Please check your connection and try again."
+          : raw;
+      setHomeError(friendly);
     } finally {
       setProcessingLearn(false);
     }

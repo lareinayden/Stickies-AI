@@ -8,6 +8,27 @@ import { supabase } from '../lib/supabase';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
+/**
+ * Parse response as JSON. If the server returns HTML (e.g. 404/500 page) or invalid JSON,
+ * throws a user-friendly error instead of raw "JSON Parse error: Unexpected character: <".
+ */
+async function parseJsonResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<')) {
+    throw new Error(
+      res.ok
+        ? 'Could not load data. The server returned an unexpected response.'
+        : 'Could not load data. Please try again later.'
+    );
+  }
+  try {
+    return trimmed === '' ? ({} as T) : (JSON.parse(text) as T);
+  } catch {
+    throw new Error('Could not load data. Please try again later.');
+  }
+}
+
 async function getAuthHeaders(userId: string, contentType?: string): Promise<Record<string, string>> {
   const h: Record<string, string> = { 'X-User-Id': userId };
   if (supabase) {
@@ -68,11 +89,11 @@ export async function getRewardsDailyStats(
   const res = await fetch(`${BASE_URL}/api/rewards/daily-stats?days=${encodeURIComponent(String(days))}`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     days?: number;
     stats?: Array<{ date: string; effortScore: number; tasksCompleted: number; reviewsCompleted: number }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Get rewards daily-stats failed: ${res.status}`);
   return { days: json.days ?? days, stats: json.stats ?? [] };
 }
@@ -92,7 +113,7 @@ export async function getRewardsWeeklyReport(
   const res = await fetch(`${BASE_URL}/api/rewards/weekly-report`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     startDate?: string;
     endDate?: string;
     days?: number;
@@ -102,7 +123,7 @@ export async function getRewardsWeeklyReport(
     averageEffort?: number;
     bestDay?: { date: string; effortScore: number } | null;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Get rewards weekly-report failed: ${res.status}`);
   return {
     startDate: json.startDate ?? '',
@@ -122,7 +143,7 @@ export async function getRewardsHighlights(
   const res = await fetch(`${BASE_URL}/api/rewards/highlights`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as { highlights?: Array<Record<string, unknown>>; error?: string };
+  const json = await parseJsonResponse<{ highlights?: Array<Record<string, unknown>>; error?: string }>(res);
   if (!res.ok) throw new Error(json.error || `Get rewards highlights failed: ${res.status}`);
   return { highlights: json.highlights ?? [] };
 }
@@ -144,7 +165,7 @@ export async function getRewardsUnlocks(
   const res = await fetch(`${BASE_URL}/api/rewards/unlocks`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     unlocks?: Array<{
       id: string;
       type: string;
@@ -156,7 +177,7 @@ export async function getRewardsUnlocks(
       metadata: unknown;
     }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Get rewards unlocks failed: ${res.status}`);
   return { unlocks: json.unlocks ?? [] };
 }
@@ -176,7 +197,7 @@ export async function getRewardsProductivity(userId: string): Promise<{
   const res = await fetch(`${BASE_URL}/api/rewards/productivity`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     peakWindow?: {
       startHour: number;
       endHour: number;
@@ -188,7 +209,7 @@ export async function getRewardsProductivity(userId: string): Promise<{
     insight?: string;
     activityByHour?: Array<{ hour: number; count: number }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Get rewards productivity failed: ${res.status}`);
   return {
     peakWindow: json.peakWindow ?? null,
@@ -304,7 +325,7 @@ export async function summarizeTranscript(
       headers: await getAuthHeaders(userId, 'application/json'),
     }
   );
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     ingestionId?: string;
     transcriptionId?: string;
     tasksCreated?: number;
@@ -319,7 +340,7 @@ export async function summarizeTranscript(
       createdAt: string;
     }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Summarize failed: ${res.status}`);
   return {
     ingestionId: json.ingestionId!,
@@ -347,7 +368,7 @@ export async function getTasks(userId: string): Promise<{
   const res = await fetch(`${BASE_URL}/api/tasks`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     tasks?: Array<{
       id: string;
       title: string;
@@ -362,7 +383,7 @@ export async function getTasks(userId: string): Promise<{
     }>;
     count?: number;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Tasks failed: ${res.status}`);
   return {
     tasks: json.tasks ?? [],
@@ -391,7 +412,7 @@ export async function createTasksFromText(
     headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify({ text: text.trim() }),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     tasksCreated?: number;
     tasks?: Array<{
       id: string;
@@ -404,7 +425,7 @@ export async function createTasksFromText(
       createdAt: string;
     }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Tasks from text failed: ${res.status}`);
   return {
     tasksCreated: json.tasksCreated ?? 0,
@@ -513,7 +534,7 @@ export async function deleteTask(
     }
   );
   if (!res.ok) {
-    const json = (await res.json()) as { error?: string };
+    const json = await parseJsonResponse<{ error?: string }>(res).catch(() => ({} as { error?: string }));
     throw new Error(json.error || `Delete task failed: ${res.status}`);
   }
 }
@@ -529,11 +550,11 @@ export async function getLearningStickies(
   const qs = search.toString();
   const url = `${BASE_URL}/api/learning-stickies${qs ? `?${qs}` : ''}`;
   const res = await fetch(url, { headers: await getAuthHeaders(userId) });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     learningStickies?: LearningSticky[];
     count?: number;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Learning stickies failed: ${res.status}`);
   return {
     learningStickies: json.learningStickies ?? [],
@@ -549,10 +570,10 @@ export async function getLearningStickiesDomains(
   const res = await fetch(`${BASE_URL}/api/learning-stickies/domains`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     domains?: Array<{ domain: string; count: number }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Domains failed: ${res.status}`);
   return { domains: json.domains ?? [] };
 }
@@ -600,12 +621,12 @@ export async function generateLearningStickies(
     headers: await getAuthHeaders(userId, 'application/json'),
     body: JSON.stringify(body),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     domain?: string;
     learningStickiesCreated?: number;
     learningStickies?: LearningSticky[];
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Generate failed: ${res.status}`);
   return {
     domain: json.domain ?? domain,
@@ -622,10 +643,10 @@ export async function getLearningTaskSettings(
   const res = await fetch(`${BASE_URL}/api/learning-task-settings`, {
     headers: await getAuthHeaders(userId),
   });
-  const json = (await res.json()) as {
+  const json = await parseJsonResponse<{
     settings?: Array<{ id: string; domain: string; frequencyDays: number; lastGeneratedAt: string | null; createdAt: string }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok) throw new Error(json.error || `Get settings failed: ${res.status}`);
   return { settings: json.settings ?? [] };
 }

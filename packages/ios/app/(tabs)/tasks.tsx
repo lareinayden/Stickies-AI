@@ -137,7 +137,12 @@ export default function Tasks() {
       setTasks((list ?? []).map(normalizeTask));
     } catch (e) {
       setTasks([]);
-      setFetchError(e instanceof Error ? e.message : 'Could not load tasks');
+      const raw = e instanceof Error ? e.message : 'Could not load tasks';
+      const friendly =
+        /JSON|Parse|Unexpected character|Could not load|failed:|fetch/i.test(raw)
+          ? "Your tasks will show up here once they're synced. Pull down to refresh."
+          : raw;
+      setFetchError(friendly);
     } finally {
       setLoading(false);
     }
@@ -252,8 +257,9 @@ export default function Tasks() {
               if (editingTask?.id === task.id) {
                 setEditingTask(null);
               }
-            } catch (_) {
-              Alert.alert('Error', 'Could not delete task.');
+            } catch (e) {
+              const message = e instanceof Error ? e.message : 'Could not delete task.';
+              Alert.alert('Error', message);
             }
           },
         },
@@ -288,7 +294,7 @@ export default function Tasks() {
         }
       >
         <StickyCard backgroundColor={StickiesColors.pink} softShadow style={styles.emptySticky}>
-          <Text style={styles.errorTitle}>Could not load tasks</Text>
+          <Text style={styles.errorTitle}>Getting started</Text>
           <Text style={styles.empty}>{fetchError}</Text>
           <Text style={styles.hint}>Pull down to retry.</Text>
         </StickyCard>
@@ -323,6 +329,7 @@ export default function Tasks() {
   return (
     <>
       <SectionList
+        style={styles.listContainer}
         sections={groupedSections}
         keyExtractor={(item) => item.id}
         renderSectionHeader={({ section }) => (
@@ -482,6 +489,10 @@ export default function Tasks() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: StickiesColors.desk,
+  },
+  listContainer: {
     flex: 1,
     backgroundColor: StickiesColors.desk,
   },

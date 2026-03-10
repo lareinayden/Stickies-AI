@@ -183,12 +183,14 @@ export async function createTasksFromText(
 }
 
 /**
- * Get task by ID (for a specific user)
+ * Get task by ID (for a specific user).
+ * Includes legacy tasks with user_id IS NULL (same as getTasks).
  */
 export async function getTaskById(userId: string, id: string): Promise<TaskRecord | null> {
   const db = getDbPool();
 
-  const query = 'SELECT * FROM tasks WHERE user_id = $1 AND id = $2';
+  const query =
+    'SELECT * FROM tasks WHERE (user_id = $1 OR user_id IS NULL) AND id = $2';
   const result = await db.query(query, [userId, id]);
 
   if (result.rows.length === 0) {
@@ -284,7 +286,8 @@ export async function getTasks(
 }
 
 /**
- * Update task completion status (for a specific user)
+ * Update task completion status (for a specific user).
+ * Includes legacy tasks with user_id IS NULL (same as getTasks).
  */
 export async function updateTaskCompletion(
   userId: string,
@@ -297,7 +300,7 @@ export async function updateTaskCompletion(
     UPDATE tasks
     SET completed = $1,
         completed_at = CASE WHEN $1 THEN CURRENT_TIMESTAMP ELSE NULL END
-    WHERE user_id = $2 AND id = $3
+    WHERE (user_id = $2 OR user_id IS NULL) AND id = $3
     RETURNING *
   `;
 
@@ -311,7 +314,8 @@ export async function updateTaskCompletion(
 }
 
 /**
- * Update task (for a specific user)
+ * Update task (for a specific user).
+ * Includes legacy tasks with user_id IS NULL (same as getTasks).
  */
 export async function updateTask(
   userId: string,
@@ -363,7 +367,7 @@ export async function updateTask(
   const query = `
     UPDATE tasks
     SET ${setClauses.join(', ')}
-    WHERE user_id = $${values.length - 1} AND id = $${values.length}
+    WHERE (user_id = $${values.length - 1} OR user_id IS NULL) AND id = $${values.length}
     RETURNING *
   `;
 
@@ -377,12 +381,14 @@ export async function updateTask(
 }
 
 /**
- * Delete task by ID (for a specific user)
+ * Delete task by ID (for a specific user).
+ * Also allows deleting legacy tasks with user_id IS NULL (same as getTasks).
  */
 export async function deleteTask(userId: string, id: string): Promise<boolean> {
   const db = getDbPool();
 
-  const query = 'DELETE FROM tasks WHERE user_id = $1 AND id = $2';
+  const query =
+    'DELETE FROM tasks WHERE (user_id = $1 OR user_id IS NULL) AND id = $2';
   const result = await db.query(query, [userId, id]);
 
   return result.rowCount !== null && result.rowCount > 0;
