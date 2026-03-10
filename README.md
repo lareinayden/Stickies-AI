@@ -672,6 +672,8 @@ Stickies-AI/
 - [Testing Guide](packages/web/TESTING.md)
 - [Security Guide](packages/web/SECURITY.md)
 - [Rewards & Reinforcement Implementation Plan](_plans/rewards-reinforcement-implementation.md)
+- **[User Testing: Polished E2E Experience](_plans/user-testing-e2e-experience.md)** — One end-to-end journey and facilitator script for user testing
+- **[Long-Term Product Vision](_plans/long-term-vision.md)** — Vision, pillars, and roadmap
 
 ## Getting Help
 
