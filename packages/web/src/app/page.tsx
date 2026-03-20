@@ -744,7 +744,7 @@ export default function Home() {
                   <textarea
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="e.g. Buy groceries tomorrow at 10am. Call dentist. I want to learn React hooks and driver's license rules."
+                    placeholder="e.g. Study NLP tomorrow at 10am. Call dentist. I want to learn React hooks and driver's license rules."
                     rows={4}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
